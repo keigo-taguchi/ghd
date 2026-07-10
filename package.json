@@ -1,0 +1,30 @@
+{
+  "name": "ghd",
+  "version": "0.1.0",
+  "description": "GitHub work dashboard CLI — see what needs your attention at a glance",
+  "type": "module",
+  "bin": {
+    "ghd": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}
