@@ -1,0 +1,7 @@
+{
+  "__comment": "レート制限: data 実質なし + RATE_LIMITED エラー",
+  "data": null,
+  "errors": [
+    { "type": "RATE_LIMITED", "message": "API rate limit exceeded for user ID 12345." }
+  ]
+}

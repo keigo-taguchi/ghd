@@ -1,0 +1,225 @@
+import { describe, expect, it } from "vitest";
+import type { GhExecOptions, GhExecResult, GhRunner } from "../src/gh.js";
+import { type Deps, run } from "../src/main.js";
+import full from "./fixtures/full.json";
+import edge from "./fixtures/edge.json";
+import empty from "./fixtures/empty.json";
+import partial from "./fixtures/partial-error.json";
+import rateLimited from "./fixtures/rate-limited.json";
+
+const NOW = Date.parse("2026-07-10T09:00:00Z");
+
+/** テーブル駆動の FakeGhRunner。呼び出しを記録し、固定レスポンスを返す。 */
+class FakeGhRunner implements GhRunner {
+  calls: { args: string[]; opts: GhExecOptions }[] = [];
+  constructor(private result: Partial<GhExecResult>) {}
+  exec(args: string[], opts: GhExecOptions): Promise<GhExecResult> {
+    this.calls.push({ args, opts });
+    return Promise.resolve({
+      stdout: "",
+      stderr: "",
+      code: 0,
+      enoent: false,
+      timedOut: false,
+      ...this.result,
+    });
+  }
+}
+
+interface Captured {
+  code: number;
+  out: string;
+  err: string;
+  runner: FakeGhRunner;
+}
+
+async function exec(
+  argv: string[],
+  ghResult: Partial<GhExecResult>,
+  depsOverride: Partial<Deps> = {},
+): Promise<Captured> {
+  const runner = new FakeGhRunner(ghResult);
+  let out = "";
+  let err = "";
+  const code = await run({
+    runner,
+    env: { LANG: "ja_JP.UTF-8" },
+    argv,
+    isTTY: true,
+    width: 80,
+    nowMs: NOW,
+    stdout: (s) => (out += s),
+    stderr: (s) => (err += s),
+    ...depsOverride,
+  });
+  return { code, out, err, runner };
+}
+
+const ok = (fixture: unknown) => ({ stdout: JSON.stringify(fixture), code: 0 });
+
+describe("run 正常系", () => {
+  it("引数なし: 3セクション表示・exit 0・ghは1回だけ呼ばれる", async () => {
+    const r = await exec([], ok(full));
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("▶ レビュー待ち (2)");
+    expect(r.out).toContain("▶ 自分のPR (3)");
+    expect(r.out).toContain("▶ アサインIssue (5)");
+    expect(r.err).toBe("");
+    expect(r.runner.calls).toHaveLength(1);
+  });
+
+  it("gh 引数: -F limit / -f 検索クエリ / query=@- / GraphQL文書はstdin", async () => {
+    const r = await exec([], ok(full));
+    const { args, opts } = r.runner.calls[0]!;
+    expect(args.slice(0, 2)).toEqual(["api", "graphql"]);
+    expect(args).toContain("-F");
+    expect(args[args.indexOf("-F") + 1]).toBe("limit=10");
+    expect(args.at(-1)).toBe("query=@-");
+    expect(opts.stdin).toContain("query Dashboard(");
+    expect(opts.timeoutMs).toBe(10_000);
+  });
+
+  it("サブコマンド先頭一致: ghd r はレビューのみ・クエリからも他節が消える", async () => {
+    const r = await exec(["r"], ok(full));
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("レビュー待ち");
+    expect(r.out).not.toContain("自分のPR");
+    const { args, opts } = r.runner.calls[0]!;
+    expect(args.join(" ")).toContain("reviewQ=");
+    expect(args.join(" ")).not.toContain("mineQ=");
+    expect(opts.stdin).not.toContain("myPRs");
+    expect(opts.stdin).not.toContain("statusCheckRollup");
+  });
+
+  it("--org は検索クエリに複数付加される", async () => {
+    const r = await exec(["--org", "cureapp", "--org", "acme"], ok(full));
+    const joined = r.runner.calls[0]!.args.join(" ");
+    expect(joined).toContain("org:cureapp");
+    expect(joined).toContain("org:acme");
+  });
+
+  it("--limit は 1..50 にクランプ", async () => {
+    const r = await exec(["--limit", "200"], ok(full));
+    expect(r.runner.calls[0]!.args).toContain("limit=50");
+  });
+
+  it("--json: schemaVersion付きJSONのみをstdoutへ", async () => {
+    const r = await exec(["--json"], ok(full));
+    const parsed = JSON.parse(r.out);
+    expect(parsed.schemaVersion).toBe(1);
+    expect(parsed.myPullRequests).toHaveLength(3);
+    expect(r.code).toBe(0);
+  });
+
+  it("非TTY: TSV出力・警告はstderrへ", async () => {
+    const r = await exec([], ok(partial), { isTTY: false });
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("\t");
+    expect(r.out).not.toContain("⚠");
+    expect(r.err).toContain("⚠ 一部のリポジトリにアクセスできませんでした");
+  });
+
+  it("レート残量僅少の警告はstderrへ（表示は正常に出る）", async () => {
+    const r = await exec([], ok(edge));
+    expect(r.code).toBe(0);
+    expect(r.err).toContain("残り 88");
+    expect(r.out).toContain("▶");
+  });
+
+  it("全0件: allClear で exit 0", async () => {
+    const r = await exec([], ok(empty));
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("今やるべきことはありません。");
+  });
+
+  it("--lang en で英語表示", async () => {
+    const r = await exec(["--lang", "en"], ok(full));
+    expect(r.out).toContain("Review requests");
+  });
+});
+
+describe("run ヘルプ・バージョン・usage エラー", () => {
+  it("--help は gh を呼ばず usage を stdout へ", async () => {
+    const r = await exec(["--help"], ok(full));
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("使い方");
+    expect(r.runner.calls).toHaveLength(0);
+  });
+
+  it("-V はバージョンのみ", async () => {
+    const r = await exec(["-V"], ok(full));
+    expect(r.code).toBe(0);
+    expect(r.out.trim()).toBe("0.1.0");
+  });
+
+  it("未知フラグ → exit 2 + usage を stderr へ", async () => {
+    const r = await exec(["--frobnicate"], ok(full));
+    expect(r.code).toBe(2);
+    expect(r.err).toContain("使い方");
+    expect(r.runner.calls).toHaveLength(0);
+  });
+
+  it("未知サブコマンド → exit 2", async () => {
+    const r = await exec(["xyz"], ok(full));
+    expect(r.code).toBe(2);
+  });
+
+  it("--limit 非数値 → exit 2", async () => {
+    const r = await exec(["--limit", "abc"], ok(full));
+    expect(r.code).toBe(2);
+  });
+
+  it("--lang 不正値 → exit 2", async () => {
+    const r = await exec(["--lang", "fr"], ok(full));
+    expect(r.code).toBe(2);
+  });
+});
+
+describe("run エラー経路", () => {
+  it("gh 不在 → exit 127", async () => {
+    const r = await exec([], { enoent: true, code: null });
+    expect(r.code).toBe(127);
+    expect(r.err).toContain("gh が見つかりません");
+  });
+
+  it("タイムアウト → exit 5", async () => {
+    const r = await exec([], { timedOut: true, code: null });
+    expect(r.code).toBe(5);
+    expect(r.err).toContain("タイムアウト");
+  });
+
+  it("未認証 (gh exit 4) → exit 3", async () => {
+    const r = await exec([], { code: 4, stderr: "To authenticate, run gh auth login" });
+    expect(r.code).toBe(3);
+    expect(r.err).toContain("gh auth login");
+  });
+
+  it("ネットワーク断 → exit 4", async () => {
+    const r = await exec([], {
+      code: 1,
+      stderr: "dial tcp: lookup api.github.com: getaddrinfo ENOTFOUND",
+    });
+    expect(r.code).toBe(4);
+    expect(r.err).toContain("接続できません");
+  });
+
+  it("レート制限 → exit 6", async () => {
+    const r = await exec([], { ...ok(rateLimited), code: 1 });
+    expect(r.code).toBe(6);
+    expect(r.err).toContain("レート制限");
+  });
+
+  it("部分エラーは失敗ではない: exit 0 + 取れた分を描画", async () => {
+    const r = await exec([], { ...ok(partial), code: 1, stderr: "GraphQL error" });
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("#488");
+    expect(r.out).toContain("⚠ 一部のリポジトリにアクセスできませんでした");
+  });
+
+  it("stdout が JSON でない予期しない失敗 → exit 1 + stderr要約", async () => {
+    const r = await exec([], { code: 1, stdout: "", stderr: "boom!\ndetails" });
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("予期しないエラー");
+    expect(r.err).toContain("boom!");
+  });
+});

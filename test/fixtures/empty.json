@@ -1,0 +1,9 @@
+{
+  "__comment": "全セクション0件",
+  "data": {
+    "reviewRequested": { "issueCount": 0, "nodes": [] },
+    "myPRs": { "issueCount": 0, "nodes": [] },
+    "assigned": { "issueCount": 0, "nodes": [] },
+    "rateLimit": { "cost": 1, "remaining": 4999, "resetAt": "2026-07-10T10:00:00Z" }
+  }
+}

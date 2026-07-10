@@ -1,0 +1,271 @@
+/**
+ * アプリ本体のオーケストレーション。副作用は Deps 経由でのみ触る。
+ * cli.ts が本物を注入し、テストは FakeGhRunner と記録用 stdout/stderr を注入する。
+ */
+
+import { parseArgs } from "node:util";
+import { toDashboard } from "./derive.js";
+import { classifyOutcome, EXIT_CODES, type ErrorKind } from "./errors.js";
+import type { GhRunner } from "./gh.js";
+import { type Lang, type MessageKey, resolveLang, t } from "./i18n.js";
+import { ALL_SECTIONS, type Section } from "./model.js";
+import { parseResponse } from "./parse.js";
+import { buildGhArgs, buildGraphQLQuery, clampLimit } from "./query.js";
+import { resolveColor } from "./render/ansi.js";
+import { renderJson } from "./render/json.js";
+import { renderDashboard, warningLines } from "./render/render.js";
+import { VERSION } from "./version.js";
+
+const TIMEOUT_MS = 10_000;
+const DEFAULT_LIMIT = 10;
+const RATE_WARN_THRESHOLD = 100;
+
+export interface Deps {
+  runner: GhRunner;
+  env: Record<string, string | undefined>;
+  /** process.argv.slice(2) 相当 */
+  argv: string[];
+  isTTY: boolean;
+  width: number;
+  nowMs: number;
+  stdout: (s: string) => void;
+  stderr: (s: string) => void;
+}
+
+const SUBCOMMANDS: Record<string, Section> = {
+  review: "review",
+  pr: "pr",
+  issue: "issue",
+};
+
+/** 先頭一致でサブコマンド解決（r/p/i の先頭文字は全て異なるため曖昧一致しない）。 */
+function resolveSection(arg: string): Section | null {
+  if (arg.length === 0) return null;
+  const hits = Object.keys(SUBCOMMANDS).filter((c) => c.startsWith(arg));
+  return hits.length === 1 ? SUBCOMMANDS[hits[0]!]! : null;
+}
+
+function usage(lang: Lang): string {
+  if (lang === "ja") {
+    return `ghd — GitHub作業ダッシュボード
+
+使い方:
+  ghd [review|pr|issue] [オプション]
+
+セクション（先頭一致: r / p / i でも可）:
+  (なし)   3セクションすべて表示
+  review   レビュー待ちのみ
+  pr       自分のPRのみ
+  issue    アサインIssueのみ
+
+オプション:
+  --org <name>    組織で絞り込み（繰り返し指定可）
+  --limit <n>     セクションあたり表示件数 (既定 10, 最大 50)
+  --json          機械可読JSONで出力
+  --no-color      色を無効化
+  --lang ja|en    表示言語
+  -h, --help      このヘルプ
+  -V, --version   バージョン
+`;
+  }
+  return `ghd — GitHub work dashboard
+
+Usage:
+  ghd [review|pr|issue] [options]
+
+Sections (prefix match: r / p / i also work):
+  (none)   show all three sections
+  review   review requests only
+  pr       my PRs only
+  issue    assigned issues only
+
+Options:
+  --org <name>    filter by organization (repeatable)
+  --limit <n>     items per section (default 10, max 50)
+  --json          machine-readable JSON output
+  --no-color      disable colors
+  --lang ja|en    display language
+  -h, --help      this help
+  -V, --version   version
+`;
+}
+
+interface ParsedCli {
+  sections: readonly Section[];
+  orgs: string[];
+  limit: number;
+  json: boolean;
+  noColor: boolean;
+  lang: Lang;
+  help: boolean;
+  version: boolean;
+}
+
+function parseCli(
+  argv: string[],
+  env: Record<string, string | undefined>,
+): ParsedCli | { usageError: string } {
+  let values: {
+    org?: string[];
+    limit?: string;
+    json?: boolean;
+    "no-color"?: boolean;
+    lang?: string;
+    help?: boolean;
+    version?: boolean;
+  };
+  let positionals: string[];
+  try {
+    ({ values, positionals } = parseArgs({
+      args: argv,
+      options: {
+        org: { type: "string", multiple: true },
+        limit: { type: "string" },
+        json: { type: "boolean" },
+        "no-color": { type: "boolean" },
+        lang: { type: "string" },
+        help: { type: "boolean", short: "h" },
+        version: { type: "boolean", short: "V" },
+      },
+      allowPositionals: true,
+      strict: true,
+    }));
+  } catch (e) {
+    return { usageError: e instanceof Error ? e.message : String(e) };
+  }
+
+  if (values.lang !== undefined && values.lang !== "ja" && values.lang !== "en") {
+    return { usageError: `--lang must be ja or en (got: ${values.lang})` };
+  }
+  const lang = resolveLang(values.lang, env);
+
+  let sections: readonly Section[] = ALL_SECTIONS;
+  if (positionals.length > 1) {
+    return { usageError: `too many arguments: ${positionals.join(" ")}` };
+  }
+  if (positionals.length === 1) {
+    const s = resolveSection(positionals[0]!);
+    if (s === null) return { usageError: `unknown section: ${positionals[0]}` };
+    sections = [s];
+  }
+
+  let limit = DEFAULT_LIMIT;
+  if (values.limit !== undefined) {
+    if (!/^\d+$/.test(values.limit)) {
+      return { usageError: `--limit must be a number (got: ${values.limit})` };
+    }
+    limit = clampLimit(Number(values.limit));
+  }
+
+  return {
+    sections,
+    orgs: values.org ?? [],
+    limit,
+    json: values.json ?? false,
+    noColor: values["no-color"] ?? false,
+    lang,
+    help: values.help ?? false,
+    version: values.version ?? false,
+  };
+}
+
+/** resetAt(ISO) をローカル時刻 HH:mm へ。パース不能なら "-"。 */
+function formatResetTime(iso: string | undefined): string {
+  if (iso === undefined) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+const ERROR_MESSAGE_KEYS: Record<ErrorKind, MessageKey> = {
+  gh_not_found: "err.ghNotFound",
+  gh_too_old: "err.ghTooOld",
+  timeout: "err.timeout",
+  rate_limited: "err.rateLimited",
+  unauthenticated: "err.unauthenticated",
+  saml: "err.saml",
+  forbidden: "err.forbidden",
+  network: "err.network",
+  usage: "err.usage",
+  unknown: "err.unknown",
+};
+
+export async function run(deps: Deps): Promise<number> {
+  const cli = parseCli(deps.argv, deps.env);
+
+  if ("usageError" in cli) {
+    const lang = resolveLang(undefined, deps.env);
+    deps.stderr(t(lang, "err.usage", { detail: cli.usageError }) + "\n\n" + usage(lang));
+    return EXIT_CODES.usage;
+  }
+  if (cli.help) {
+    deps.stdout(usage(cli.lang));
+    return EXIT_CODES.ok;
+  }
+  if (cli.version) {
+    deps.stdout(VERSION + "\n");
+    return EXIT_CODES.ok;
+  }
+
+  const ghArgs = buildGhArgs(cli.sections, { orgs: cli.orgs, limit: cli.limit });
+  const doc = buildGraphQLQuery(cli.sections);
+  const result = await deps.runner.exec(ghArgs, { stdin: doc, timeoutMs: TIMEOUT_MS });
+
+  const parsed = parseResponse(result.stdout, cli.sections);
+  const outcome = classifyOutcome({
+    enoent: result.enoent,
+    timedOut: result.timedOut,
+    exitCode: result.code,
+    stderr: result.stderr,
+    parsed,
+    sections: cli.sections,
+  });
+
+  if (outcome.kind === "error") {
+    const key = ERROR_MESSAGE_KEYS[outcome.error];
+    let msg: string;
+    if (outcome.error === "rate_limited") {
+      msg = t(cli.lang, key, { time: formatResetTime(outcome.detail) });
+    } else if (outcome.error === "unknown" && outcome.detail !== undefined) {
+      msg = `${t(cli.lang, key)}: ${outcome.detail}`;
+    } else {
+      msg = t(cli.lang, key);
+    }
+    deps.stderr(msg + "\n");
+    return EXIT_CODES[outcome.error];
+  }
+
+  const dashboard = toDashboard(outcome.parsed, cli.sections);
+
+  const rl = outcome.parsed.rateLimit;
+  if (rl !== undefined && rl.remaining < RATE_WARN_THRESHOLD) {
+    deps.stderr(t(cli.lang, "warn.rateLow", { remaining: rl.remaining }) + "\n");
+  }
+
+  if (cli.json) {
+    // --json: stdout は JSON のみ。警告は warnings 配列に入っている
+    deps.stdout(renderJson(dashboard, { nowMs: deps.nowMs, sections: cli.sections }));
+    return EXIT_CODES.ok;
+  }
+
+  const color = resolveColor(cli.noColor, deps.env, deps.isTTY);
+  deps.stdout(
+    renderDashboard(dashboard, {
+      lang: cli.lang,
+      width: deps.width,
+      color,
+      isTTY: deps.isTTY,
+      nowMs: deps.nowMs,
+      sections: cli.sections,
+    }),
+  );
+  if (!deps.isTTY) {
+    // TSV は stdout を汚さない: 警告は stderr へ
+    for (const w of warningLines(dashboard.warnings, cli.lang)) {
+      deps.stderr(w + "\n");
+    }
+  }
+  return EXIT_CODES.ok;
+}

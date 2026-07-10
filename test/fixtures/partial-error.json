@@ -1,0 +1,43 @@
+{
+  "__comment": "部分エラー: reviewRequested が権限エラーで null、他セクションは取得成功。gh は exit≠0 でも stdout に data+errors を返す",
+  "data": {
+    "reviewRequested": null,
+    "myPRs": {
+      "issueCount": 1,
+      "nodes": [
+        {
+          "number": 488,
+          "title": "feat: retry queue",
+          "url": "https://github.com/cureapp/api/pull/488",
+          "isDraft": false,
+          "updatedAt": "2026-07-10T06:00:00Z",
+          "reviewDecision": "APPROVED",
+          "mergeable": "MERGEABLE",
+          "repository": { "nameWithOwner": "cureapp/api" },
+          "commits": {
+            "nodes": [
+              {
+                "commit": {
+                  "statusCheckRollup": {
+                    "state": "SUCCESS",
+                    "contexts": {
+                      "totalCount": 1,
+                      "nodes": [
+                        { "__typename": "CheckRun", "name": "build", "status": "COMPLETED", "conclusion": "SUCCESS" }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "assigned": { "issueCount": 0, "nodes": [] },
+    "rateLimit": { "cost": 1, "remaining": 4990, "resetAt": "2026-07-10T10:00:00Z" }
+  },
+  "errors": [
+    { "type": "FORBIDDEN", "message": "Resource not accessible by personal access token" }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "__comment": "gh 2.87.3 / 2026-07-10 実測形状に基づく合成フィクスチャ（rateLimit cost=1 実測）",
+  "data": {
+    "reviewRequested": {
+      "issueCount": 2,
+      "nodes": [
+        {
+          "number": 482,
+          "title": "feat: sync retry",
+          "url": "https://github.com/cureapp/api/pull/482",
+          "isDraft": false,
+          "updatedAt": "2026-07-10T07:00:00Z",
+          "repository": { "nameWithOwner": "cureapp/api" },
+          "author": { "login": "alice" }
+        },
+        {
+          "number": 479,
+          "title": "fix: token refresh",
+          "url": "https://github.com/cureapp/app/pull/479",
+          "isDraft": false,
+          "updatedAt": "2026-07-09T09:00:00Z",
+          "repository": { "nameWithOwner": "cureapp/app" },
+          "author": { "login": "bob" }
+        }
+      ]
+    },
+    "myPRs": {
+      "issueCount": 3,
+      "nodes": [
+        {
+          "number": 488,
+          "title": "feat: retry queue",
+          "url": "https://github.com/cureapp/api/pull/488",
+          "isDraft": false,
+          "updatedAt": "2026-07-10T06:00:00Z",
+          "reviewDecision": "REVIEW_REQUIRED",
+          "mergeable": "MERGEABLE",
+          "repository": { "nameWithOwner": "cureapp/api" },
+          "commits": {
+            "nodes": [
+              {
+                "commit": {
+                  "statusCheckRollup": {
+                    "state": "SUCCESS",
+                    "contexts": {
+                      "totalCount": 3,
+                      "nodes": [
+                        { "__typename": "CheckRun", "name": "build", "status": "COMPLETED", "conclusion": "SUCCESS" },
+                        { "__typename": "CheckRun", "name": "dependabot", "status": "COMPLETED", "conclusion": "SKIPPED" },
+                        { "__typename": "StatusContext", "context": "deploy/preview", "state": "SUCCESS" }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "number": 485,
+          "title": "fix: flaky spec",
+          "url": "https://github.com/cureapp/api/pull/485",
+          "isDraft": false,
+          "updatedAt": "2026-07-10T04:00:00Z",
+          "reviewDecision": "CHANGES_REQUESTED",
+          "mergeable": "CONFLICTING",
+          "repository": { "nameWithOwner": "cureapp/api" },
+          "commits": {
+            "nodes": [
+              {
+                "commit": {
+                  "statusCheckRollup": {
+                    "state": "FAILURE",
+                    "contexts": {
+                      "totalCount": 4,
+                      "nodes": [
+                        { "__typename": "CheckRun", "name": "test/unit", "status": "COMPLETED", "conclusion": "FAILURE" },
+                        { "__typename": "CheckRun", "name": "test/e2e", "status": "COMPLETED", "conclusion": "TIMED_OUT" },
+                        { "__typename": "CheckRun", "name": "build", "status": "COMPLETED", "conclusion": "SUCCESS" },
+                        { "__typename": "CheckRun", "name": "dependabot", "status": "COMPLETED", "conclusion": "SKIPPED" }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "number": 481,
+          "title": "chore: bump deps",
+          "url": "https://github.com/cureapp/app/pull/481",
+          "isDraft": true,
+          "updatedAt": "2026-07-08T09:00:00Z",
+          "reviewDecision": null,
+          "mergeable": "UNKNOWN",
+          "repository": { "nameWithOwner": "cureapp/app" },
+          "commits": {
+            "nodes": [ { "commit": { "statusCheckRollup": null } } ]
+          }
+        }
+      ]
+    },
+    "assigned": {
+      "issueCount": 5,
+      "nodes": [
+        {
+          "number": 77,
+          "title": "ログにノイズが多い",
+          "url": "https://github.com/cureapp/api/issues/77",
+          "updatedAt": "2026-07-04T09:00:00Z",
+          "repository": { "nameWithOwner": "cureapp/api" },
+          "labels": { "nodes": [ { "name": "P2" }, { "name": "bug" } ] }
+        }
+      ]
+    },
+    "rateLimit": { "cost": 1, "remaining": 4998, "resetAt": "2026-07-10T10:00:00Z" }
+  }
+}

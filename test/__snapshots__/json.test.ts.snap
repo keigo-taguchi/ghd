@@ -1,0 +1,91 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderJson > スナップショット（v1 凍結の見張り） 1`] = `
+"{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-10T09:00:00.000Z",
+  "reviewRequests": [
+    {
+      "number": 482,
+      "title": "feat: sync retry",
+      "repo": "cureapp/api",
+      "url": "https://github.com/cureapp/api/pull/482",
+      "author": "alice",
+      "updatedAt": "2026-07-10T07:00:00Z"
+    },
+    {
+      "number": 479,
+      "title": "fix: token refresh",
+      "repo": "cureapp/app",
+      "url": "https://github.com/cureapp/app/pull/479",
+      "author": "bob",
+      "updatedAt": "2026-07-09T09:00:00Z"
+    }
+  ],
+  "myPullRequests": [
+    {
+      "number": 488,
+      "title": "feat: retry queue",
+      "repo": "cureapp/api",
+      "url": "https://github.com/cureapp/api/pull/488",
+      "draft": false,
+      "ci": "pass",
+      "ciFailedChecks": [],
+      "ciMoreFailures": false,
+      "review": "waiting",
+      "conflict": false,
+      "updatedAt": "2026-07-10T06:00:00Z"
+    },
+    {
+      "number": 485,
+      "title": "fix: flaky spec",
+      "repo": "cureapp/api",
+      "url": "https://github.com/cureapp/api/pull/485",
+      "draft": false,
+      "ci": "fail",
+      "ciFailedChecks": [
+        "test/unit",
+        "test/e2e"
+      ],
+      "ciMoreFailures": false,
+      "review": "changes_requested",
+      "conflict": true,
+      "updatedAt": "2026-07-10T04:00:00Z"
+    },
+    {
+      "number": 481,
+      "title": "chore: bump deps",
+      "repo": "cureapp/app",
+      "url": "https://github.com/cureapp/app/pull/481",
+      "draft": true,
+      "ci": "none",
+      "ciFailedChecks": [],
+      "ciMoreFailures": false,
+      "review": null,
+      "conflict": false,
+      "updatedAt": "2026-07-08T09:00:00Z"
+    }
+  ],
+  "assignedIssues": [
+    {
+      "number": 77,
+      "title": "ログにノイズが多い",
+      "repo": "cureapp/api",
+      "url": "https://github.com/cureapp/api/issues/77",
+      "labels": [
+        "P2",
+        "bug"
+      ],
+      "priority": "P2",
+      "updatedAt": "2026-07-04T09:00:00Z"
+    }
+  ],
+  "totals": {
+    "reviewRequests": 2,
+    "myPullRequests": 3,
+    "assignedIssues": 5
+  },
+  "warnings": []
+}
+"
+`;
