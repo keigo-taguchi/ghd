@@ -26,6 +26,8 @@ const ja = {
   "err.ghTooOld": "gh のアップデートが必要です (gh api graphql 非対応)",
   "err.timeout": "10秒でタイムアウトしました。ネットワークを確認してください",
   "err.rateLimited": "APIレート制限中。{time} に回復します",
+  "err.rateLimitedNoTime":
+    "APIレート制限中です。しばらくしてから再実行してください",
   "err.unauthenticated": "GitHub に未認証です。まず: gh auth login",
   "err.saml": "組織のSSO認可が必要です: gh auth refresh を実行してください",
   "err.forbidden": "トークンの権限不足です: gh auth refresh -s repo,read:org",
@@ -54,6 +56,7 @@ const en: Record<MessageKey, string> = {
   "err.ghTooOld": "gh needs an update (gh api graphql unsupported)",
   "err.timeout": "Timed out after 10s. Check your network",
   "err.rateLimited": "API rate limited. Resets at {time}",
+  "err.rateLimitedNoTime": "API rate limited. Try again in a while",
   "err.unauthenticated": "Not authenticated with GitHub. Run: gh auth login",
   "err.saml": "Your org requires SSO authorization: run gh auth refresh",
   "err.forbidden": "Token lacks scopes: gh auth refresh -s repo,read:org",

@@ -113,12 +113,20 @@ export function derivePriority(labels: string[]): string | null {
   return null;
 }
 
-/** ANSI インジェクション防御: C0/C1 制御文字と ESC を除去（docs/SPEC.md §5）。 */
+/** 双方向テキスト制御文字（U+202E RLO 等）。1件のタイトルで行全体の表示順を
+ *  視覚的に反転・偽装できるため除去する。ZWJ/異体字セレクタは絵文字合成に
+ *  必要なので残す。 */
+const BIDI_CONTROLS = new Set([
+  0x061c, 0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066,
+  0x2067, 0x2068, 0x2069,
+]);
+
+/** 表示インジェクション防御: C0/C1 制御文字・ESC・bidi 制御を除去（docs/SPEC.md §5）。 */
 export function stripControlChars(s: string): string {
   let out = "";
   for (const ch of s) {
     const cp = ch.codePointAt(0)!;
-    if (cp < 0x20 || (cp >= 0x7f && cp <= 0x9f)) continue;
+    if (cp < 0x20 || (cp >= 0x7f && cp <= 0x9f) || BIDI_CONTROLS.has(cp)) continue;
     out += ch;
   }
   return out;
@@ -135,8 +143,8 @@ export function toDashboard(
       number: n.number,
       title: stripControlChars(n.title),
       url: n.url,
-      repo: n.repo,
-      author: n.author,
+      repo: stripControlChars(n.repo),
+      author: n.author === null ? null : stripControlChars(n.author),
       updatedAt: n.updatedAt,
     }));
     dashboard.reviewRequests = { items, totalCount: parsed.review.totalCount };
@@ -149,7 +157,7 @@ export function toDashboard(
         number: n.number,
         title: stripControlChars(n.title),
         url: n.url,
-        repo: n.repo,
+        repo: stripControlChars(n.repo),
         draft: n.isDraft,
         ci,
         ciFailedChecks: failedChecks.map(stripControlChars),
@@ -169,7 +177,7 @@ export function toDashboard(
         number: n.number,
         title: stripControlChars(n.title),
         url: n.url,
-        repo: n.repo,
+        repo: stripControlChars(n.repo),
         labels,
         priority: derivePriority(labels),
         updatedAt: n.updatedAt,
@@ -182,14 +190,15 @@ export function toDashboard(
     dashboard.warnings.push({ kind: "parse_skipped", count: parsed.skipped });
   }
 
-  // 要求したのに欠けたセクションがある（かつ他は取れた）= 部分エラー
+  // 部分エラー = 要求セクションの欠落、または data と errors の併存
+  // （セクションが全て揃っていても errors があれば一部リポジトリが欠けている）
   const missing = sections.some((s) => {
     if (s === "review") return !parsed.review;
     if (s === "pr") return !parsed.mine;
     return !parsed.issues;
   });
   const anyPresent = parsed.review || parsed.mine || parsed.issues;
-  if (missing && anyPresent) {
+  if ((missing && anyPresent) || parsed.errors.length > 0) {
     dashboard.warnings.push({ kind: "partial_error" });
   }
 

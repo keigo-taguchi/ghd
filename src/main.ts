@@ -4,7 +4,7 @@
  */
 
 import { parseArgs } from "node:util";
-import { toDashboard } from "./derive.js";
+import { stripControlChars, toDashboard } from "./derive.js";
 import { classifyOutcome, EXIT_CODES, type ErrorKind } from "./errors.js";
 import type { GhRunner } from "./gh.js";
 import { type Lang, type MessageKey, resolveLang, t } from "./i18n.js";
@@ -66,6 +66,15 @@ function usage(lang: Lang): string {
   --lang ja|en    表示言語
   -h, --help      このヘルプ
   -V, --version   バージョン
+
+環境変数:
+  GHD_LANG=ja|en  表示言語（--lang が優先）
+  NO_COLOR        色を無効化
+  FORCE_COLOR=1   非TTYでも色付きダッシュボード表示 (例: watch -c 'FORCE_COLOR=1 ghd')
+
+終了コード:
+  0 成功 / 1 予期しない / 2 使い方 / 3 認証 / 4 ネットワーク / 5 タイムアウト
+  6 レート制限 / 127 gh不在
 `;
   }
   return `ghd — GitHub work dashboard
@@ -87,6 +96,15 @@ Options:
   --lang ja|en    display language
   -h, --help      this help
   -V, --version   version
+
+Environment:
+  GHD_LANG=ja|en  display language (--lang wins)
+  NO_COLOR        disable colors
+  FORCE_COLOR=1   colored dashboard even when piped (e.g. watch -c 'FORCE_COLOR=1 ghd')
+
+Exit codes:
+  0 ok / 1 unexpected / 2 usage / 3 auth / 4 network / 5 timeout
+  6 rate limit / 127 gh missing
 `;
 }
 
@@ -139,6 +157,14 @@ function parseCli(
   }
   const lang = resolveLang(values.lang, env);
 
+  // GitHub の org/user login は英数字とハイフンのみ。検証しないと
+  // --org "cureapp is:closed" のような検索構文注入で結果が静かに変わる
+  for (const org of values.org ?? []) {
+    if (!/^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(org)) {
+      return { usageError: `invalid --org: ${org}` };
+    }
+  }
+
   let sections: readonly Section[] = ALL_SECTIONS;
   if (positionals.length > 1) {
     return { usageError: `too many arguments: ${positionals.join(" ")}` };
@@ -151,7 +177,8 @@ function parseCli(
 
   let limit = DEFAULT_LIMIT;
   if (values.limit !== undefined) {
-    if (!/^\d+$/.test(values.limit)) {
+    // 負値も「範囲外」として黙って 1..50 にクランプする（docs/SPEC.md §1）
+    if (!/^-?\d+$/.test(values.limit)) {
       return { usageError: `--limit must be a number (got: ${values.limit})` };
     }
     limit = clampLimit(Number(values.limit));
@@ -197,7 +224,9 @@ export async function run(deps: Deps): Promise<number> {
 
   if ("usageError" in cli) {
     const lang = resolveLang(undefined, deps.env);
-    deps.stderr(t(lang, "err.usage", { detail: cli.usageError }) + "\n\n" + usage(lang));
+    // detail は argv 由来: 制御文字を落としてから端末へ流す
+    const detail = stripControlChars(cli.usageError);
+    deps.stderr(t(lang, "err.usage", { detail }) + "\n\n" + usage(lang));
     return EXIT_CODES.usage;
   }
   if (cli.help) {
@@ -227,9 +256,14 @@ export async function run(deps: Deps): Promise<number> {
     const key = ERROR_MESSAGE_KEYS[outcome.error];
     let msg: string;
     if (outcome.error === "rate_limited") {
-      msg = t(cli.lang, key, { time: formatResetTime(outcome.detail) });
+      // resetAt はレスポンスに rateLimit 節が残っていた場合のみ得られる
+      msg =
+        outcome.detail !== undefined
+          ? t(cli.lang, key, { time: formatResetTime(outcome.detail) })
+          : t(cli.lang, "err.rateLimitedNoTime");
     } else if (outcome.error === "unknown" && outcome.detail !== undefined) {
-      msg = `${t(cli.lang, key)}: ${outcome.detail}`;
+      // detail は gh の stderr 由来: 制御文字を落としてから端末へ流す
+      msg = `${t(cli.lang, key)}: ${stripControlChars(outcome.detail)}`;
     } else {
       msg = t(cli.lang, key);
     }
@@ -251,17 +285,20 @@ export async function run(deps: Deps): Promise<number> {
   }
 
   const color = resolveColor(cli.noColor, deps.env, deps.isTTY);
+  // FORCE_COLOR=1 は「パイプ先でも色付きダッシュボードが欲しい」という明示指示
+  // （watch -c 等）。TSV ではなく TTY レイアウトで描画する
+  const pretty = deps.isTTY || (color && deps.env["FORCE_COLOR"] === "1");
   deps.stdout(
     renderDashboard(dashboard, {
       lang: cli.lang,
       width: deps.width,
       color,
-      isTTY: deps.isTTY,
+      isTTY: pretty,
       nowMs: deps.nowMs,
       sections: cli.sections,
     }),
   );
-  if (!deps.isTTY) {
+  if (!pretty) {
     // TSV は stdout を汚さない: 警告は stderr へ
     for (const w of warningLines(dashboard.warnings, cli.lang)) {
       deps.stderr(w + "\n");

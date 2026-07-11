@@ -161,7 +161,6 @@ function parseSection<T>(
 ): RawSection<T> | undefined {
   const section = data[alias];
   if (!isObj(section)) return undefined; // 権限エラー等で節ごと null
-  const totalCount = isNum(section["issueCount"]) ? section["issueCount"] : 0;
   const nodes: T[] = [];
   const rawNodes = section["nodes"];
   if (Array.isArray(rawNodes)) {
@@ -173,7 +172,10 @@ function parseSection<T>(
       else nodes.push(parsed);
     }
   }
-  return { totalCount, nodes };
+  // issueCount 欠落時に 0 を返すと取得済みアイテムが all-clear 表示に隠れるため
+  // 実ノード数を下限にする
+  const declared = isNum(section["issueCount"]) ? section["issueCount"] : 0;
+  return { totalCount: Math.max(declared, nodes.length), nodes };
 }
 
 /**

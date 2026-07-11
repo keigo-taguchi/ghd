@@ -22,32 +22,32 @@ exports[`renderDashboard TTY > width50: repo 列が落ちる 1`] = `
   #479   fix: token refresh                   1d前
 
 ▶ 自分のPR (3)
-  #488   ✓ pass    approve待ち    feat: r…    3h前
-  #485   ✗ fail    test/unit+     fix: fl…    5h前
-  #481   ● draft                  chore: …    2d前
+  #488   ✓ pass    approve待ち    feat: retry que…
+  #485   ✗ fail    test/unit+     fix: flaky spec
+  #481   ● draft                  chore: bump deps
 
 ▶ アサインIssue (5)
-  #77    ログにノイズが多い             P2    6d前
+  #77    ログにノイズが多い            P2     6d前
   … 他 4 件 (--limit 5 で表示)
 "
 `;
 
 exports[`renderDashboard TTY > エッジケース: moreFailures / dedupe / pending / ghost author 1`] = `
 "▶ レビュー待ち (3)
-  #900   docs: ghost author PR                                  acme/lib    4h前
+  #900   docs: ghost author PR                                 acme/lib     4h前
   … 他 2 件 (--limit 3 で表示)
 
 ▶ 自分のPR (6)
-  #910   –                        feat: force-push直後（commit… acme/lib    5h前
-  #911   ✗ fail    他にも失敗あり fix: 失敗名がfirst:50の外     acme/lib    6h前
-  #912   ✗ fail    broken         fix: re-run重複（後勝ちで成…  acme/lib    7h前
-  #913   ● run                    chore: state欠落・実行中チェ… acme/lib    8h前
-  #914   ✗ fail    ci/jenkins     fix: StatusContextのERROR + … acme/lib    9h前
+  #910   –                        feat: force-push直後（commi… acme/lib     5h前
+  #911   ✗ fail    他にも失敗あり fix: 失敗名がfirst:50の外    acme/lib     6h前
+  #912   ✗ fail    broken         fix: re-run重複（後勝ちで成… acme/lib     7h前
+  #913   ● run                    chore: state欠落・実行中チ…  acme/lib     8h前
+  #914   ✗ fail    ci/jenkins     fix: StatusContextのERROR +… acme/lib     9h前
   … 他 1 件 (--limit 6 で表示)
 
 ▶ アサインIssue (2)
-  #80    制御文字[31m入りタイトル                priority: high acme/lib    1d前
-  #81    ラベルなしIssue                                        acme/lib    2d前
+  #80    制御文字[31m入りタイトル                 priority: h… acme/lib     1d前
+  #81    ラベルなしIssue                                       acme/lib     2d前
 
 ⚠ 1件を解析できませんでした
 "
@@ -55,9 +55,9 @@ exports[`renderDashboard TTY > エッジケース: moreFailures / dedupe / pendi
 
 exports[`renderDashboard TTY > サブコマンド絞り込み: 要求セクションのみ表示 1`] = `
 "▶ 自分のPR (3)
-  #488   ✓ pass    approve待ち    feat: retry queue          cureapp/api    3h前
-  #485   ✗ fail    test/unit+     fix: flaky spec            cureapp/api    5h前
-  #481   ● draft                  chore: bump deps           cureapp/app    2d前
+  #488   ✓ pass    approve待ち    feat: retry queue         cureapp/api     3h前
+  #485   ✗ fail    test/unit+     fix: flaky spec           cureapp/api     5h前
+  #481   ● draft                  chore: bump deps          cureapp/app     2d前
 "
 `;
 
@@ -72,55 +72,55 @@ exports[`renderDashboard TTY > 全セクション0件: コンパクト表示 + a
 
 exports[`renderDashboard TTY > 正常系 en / width80 1`] = `
 "▶ Review requests (2)
-  #482   feat: sync retry                                    cureapp/api  2h ago
-  #479   fix: token refresh                                  cureapp/app  1d ago
+  #482   feat: sync retry                                   cureapp/api   2h ago
+  #479   fix: token refresh                                 cureapp/app   1d ago
 
 ▶ My PRs (3)
-  #488   ✓ pass    needs review   feat: retry queue          cureapp/api  3h ago
-  #485   ✗ fail    test/unit+     fix: flaky spec            cureapp/api  5h ago
-  #481   ● draft                  chore: bump deps           cureapp/app  2d ago
+  #488   ✓ pass    needs review   feat: retry queue         cureapp/api   3h ago
+  #485   ✗ fail    test/unit+     fix: flaky spec           cureapp/api   5h ago
+  #481   ● draft                  chore: bump deps          cureapp/app   2d ago
 
 ▶ Assigned issues (5)
-  #77    ログにノイズが多い                               P2 cureapp/api  6d ago
+  #77    ログにノイズが多い                              P2 cureapp/api   6d ago
   … 4 more (--limit 5 to show)
 "
 `;
 
 exports[`renderDashboard TTY > 正常系 ja / width80 / 色あり 1`] = `
 "[1m▶ レビュー待ち (2)[22m
-  [1m#482  [22m feat: sync retry                                    [2mcureapp/api[22m [2m   2h前[22m
-  [1m#479  [22m fix: token refresh                                  [2mcureapp/app[22m [2m   1d前[22m
+  [1m#482  [22m feat: sync retry                                   [2mcureapp/api[22m [2m    2h前[22m
+  [1m#479  [22m fix: token refresh                                 [2mcureapp/app[22m [2m    1d前[22m
 
 [1m▶ 自分のPR (3)[22m
-  [1m#488  [22m [32m✓ pass   [39m approve待ち    feat: retry queue          [2mcureapp/api[22m [2m   3h前[22m
-  [1m#485  [22m [31m✗ fail   [39m [31mtest/unit+    [39m fix: flaky spec            [2mcureapp/api[22m [2m   5h前[22m
-  [1m#481  [22m [2m● draft  [22m                chore: bump deps           [2mcureapp/app[22m [2m   2d前[22m
+  [1m#488  [22m [32m✓ pass   [39m approve待ち    feat: retry queue         [2mcureapp/api[22m [2m    3h前[22m
+  [1m#485  [22m [31m✗ fail   [39m [31mtest/unit+    [39m fix: flaky spec           [2mcureapp/api[22m [2m    5h前[22m
+  [1m#481  [22m [2m● draft  [22m                chore: bump deps          [2mcureapp/app[22m [2m    2d前[22m
 
 [1m▶ アサインIssue (5)[22m
-  [1m#77   [22m ログにノイズが多い                               [33mP2[39m [2mcureapp/api[22m [33m   6d前[39m
+  [1m#77   [22m ログにノイズが多い                              [33mP2[39m [2mcureapp/api[22m [33m    6d前[39m
   [2m… 他 4 件 (--limit 5 で表示)[22m
 "
 `;
 
 exports[`renderDashboard TTY > 正常系 ja / width80 / 色なし 1`] = `
 "▶ レビュー待ち (2)
-  #482   feat: sync retry                                    cureapp/api    2h前
-  #479   fix: token refresh                                  cureapp/app    1d前
+  #482   feat: sync retry                                   cureapp/api     2h前
+  #479   fix: token refresh                                 cureapp/app     1d前
 
 ▶ 自分のPR (3)
-  #488   ✓ pass    approve待ち    feat: retry queue          cureapp/api    3h前
-  #485   ✗ fail    test/unit+     fix: flaky spec            cureapp/api    5h前
-  #481   ● draft                  chore: bump deps           cureapp/app    2d前
+  #488   ✓ pass    approve待ち    feat: retry queue         cureapp/api     3h前
+  #485   ✗ fail    test/unit+     fix: flaky spec           cureapp/api     5h前
+  #481   ● draft                  chore: bump deps          cureapp/app     2d前
 
 ▶ アサインIssue (5)
-  #77    ログにノイズが多い                               P2 cureapp/api    6d前
+  #77    ログにノイズが多い                              P2 cureapp/api     6d前
   … 他 4 件 (--limit 5 で表示)
 "
 `;
 
 exports[`renderDashboard TTY > 部分エラー: 欠けたセクションはスキップし警告フッタ 1`] = `
 "▶ 自分のPR (1)
-  #488   ✓ pass    approved       feat: retry queue          cureapp/api    3h前
+  #488   ✓ pass    approved       feat: retry queue         cureapp/api     3h前
 
 ▶ アサインIssue (0)
   なし

@@ -3,6 +3,7 @@ import { toDashboard } from "../src/derive.js";
 import { parseResponse } from "../src/parse.js";
 import { ALL_SECTIONS, type Dashboard } from "../src/model.js";
 import { renderDashboard, warningLines, type RenderOptions } from "../src/render/render.js";
+import { stringWidth } from "../src/render/width.js";
 import full from "./fixtures/full.json";
 import edge from "./fixtures/edge.json";
 import empty from "./fixtures/empty.json";
@@ -65,12 +66,16 @@ describe("renderDashboard TTY", () => {
     expect(out).toMatchSnapshot();
   });
 
-  it("1行1アイテム厳守: どの行も指定幅を超えない（width80・全フィクスチャ）", () => {
-    for (const f of [full, edge, partial]) {
-      const out = renderDashboard(dash(f), OPTS);
-      for (const line of out.split("\n")) {
-        // stringWidth で行幅検査（色なしなので生の表示幅）
-        expect(line.length, `line: ${JSON.stringify(line)}`).toBeLessThanOrEqual(120);
+  it("1行1アイテム厳守: どの行も表示幅が width を超えない（全フィクスチャ×各幅）", () => {
+    for (const f of [full, edge, empty, partial]) {
+      for (const width of [120, 80, 66, 60, 50, 45]) {
+        const out = renderDashboard(dash(f), { ...OPTS, width });
+        for (const line of out.split("\n")) {
+          expect(
+            stringWidth(line),
+            `width=${width} line: ${JSON.stringify(line)}`,
+          ).toBeLessThanOrEqual(width);
+        }
       }
     }
   });

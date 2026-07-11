@@ -76,7 +76,8 @@ gh api graphql \
   -f reviewQ='is:open is:pr review-requested:@me draft:false archived:false sort:updated-desc' \
   -f mineQ='is:open is:pr author:@me archived:false sort:updated-desc' \
   -f issueQ='is:open is:issue assignee:@me archived:false sort:updated-desc' \
-  -f query=@-        # GraphQL文書はstdinで渡す（シェルエスケープ事故の根絶）
+  -F query=@-        # GraphQL文書はstdinで渡す（シェルエスケープ事故の根絶）
+                     # 注: @-（stdin参照）が効くのは -F のみ。-f はリテラル "@-" を送る（実gh 2.87.3で確認、レビューで発見・修正済み）
 ```
 - **`-F limit=10`**: Int変数は必ず `-F`（`-f` は全て文字列になり型エラー）。
 - `--org cureapp` 指定時は各検索文字列に ` org:cureapp` を付加（複数指定なら複数付加）。
