@@ -2,6 +2,7 @@
  *  shebang はビルド時に esbuild の banner で付与する（scripts/build.mjs）。 */
 
 import process from "node:process";
+import { makeUrlOpener } from "./browser.js";
 import { RealGhRunner } from "./gh.js";
 import { run } from "./main.js";
 
@@ -15,5 +16,6 @@ const code = await run({
   nowMs: Date.now(),
   stdout: (s) => void process.stdout.write(s),
   stderr: (s) => void process.stderr.write(s),
+  openUrl: makeUrlOpener(process.env, process.platform),
 });
 process.exitCode = code;

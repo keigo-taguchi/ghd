@@ -18,6 +18,11 @@ const ja = {
   "review.approved": "approved",
   "conflict": "⚠ conflict",
   "ci.hiddenFailures": "他にも失敗あり",
+  "open.notFound":
+    "#{number} は自分に関係する open な PR/Issue に見つかりません（gh pr view --web -R owner/repo で直接開けます）",
+  "open.multiple": "#{number} が複数見つかりました。URL を直接開いてください:",
+  "open.browserFailed": "ブラウザを起動できませんでした。上のURLを直接開いてください",
+  "open.badUrl": "https 以外のURLのため開きません",
   "warn.partial": "⚠ 一部のリポジトリにアクセスできませんでした",
   "warn.parseSkipped": "⚠ {n}件を解析できませんでした",
   "warn.rateLow": "⚠ APIレート制限の残量が少なくなっています (残り {remaining})",
@@ -48,6 +53,11 @@ const en: Record<MessageKey, string> = {
   "review.approved": "approved",
   "conflict": "⚠ conflict",
   "ci.hiddenFailures": "more failures",
+  "open.notFound":
+    "#{number} not found among your open PRs/issues (try: gh pr view --web -R owner/repo)",
+  "open.multiple": "Multiple matches for #{number}. Open a URL directly:",
+  "open.browserFailed": "Could not launch a browser. Open the URL above directly",
+  "open.badUrl": "Refusing to open a non-https URL",
   "warn.partial": "⚠ Some repositories could not be accessed",
   "warn.parseSkipped": "⚠ Skipped {n} unparseable item(s)",
   "warn.rateLow": "⚠ API rate limit is running low ({remaining} left)",

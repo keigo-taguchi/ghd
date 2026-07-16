@@ -9,21 +9,29 @@ import type { Section } from "./model.js";
 export interface QueryOptions {
   orgs: string[];
   limit: number;
+  /** ghd <番号>: 各検索クエリに番号を検索語として追記する（number: 修飾子は
+   *  search に存在しないため。裸の番号は該当番号の Issue/PR に一致することを
+   *  実測確認済み。テキスト一致の混入は呼び出し側で number 完全一致に絞る） */
+  number?: number;
 }
 
 const ORG = (orgs: string[]) => orgs.map((o) => ` org:${o}`).join("");
 
 /** レビュー待ちは draft:false でノイズ除去。全クエリ sort:updated-desc 必須。 */
-export function buildSearchQueries(orgs: string[]): {
+export function buildSearchQueries(
+  orgs: string[],
+  number?: number,
+): {
   reviewQ: string;
   mineQ: string;
   issueQ: string;
 } {
   const org = ORG(orgs);
+  const num = number !== undefined ? ` ${number}` : "";
   return {
-    reviewQ: `is:open is:pr review-requested:@me draft:false archived:false sort:updated-desc${org}`,
-    mineQ: `is:open is:pr author:@me archived:false sort:updated-desc${org}`,
-    issueQ: `is:open is:issue assignee:@me archived:false sort:updated-desc${org}`,
+    reviewQ: `is:open is:pr review-requested:@me draft:false archived:false sort:updated-desc${org}${num}`,
+    mineQ: `is:open is:pr author:@me archived:false sort:updated-desc${org}${num}`,
+    issueQ: `is:open is:issue assignee:@me archived:false sort:updated-desc${org}${num}`,
   };
 }
 
@@ -97,7 +105,7 @@ export function buildGhArgs(
   sections: readonly Section[],
   opts: QueryOptions,
 ): string[] {
-  const q = buildSearchQueries(opts.orgs);
+  const q = buildSearchQueries(opts.orgs, opts.number);
   const args = ["api", "graphql", "-F", `limit=${opts.limit}`];
   if (sections.includes("review")) args.push("-f", `reviewQ=${q.reviewQ}`);
   if (sections.includes("pr")) args.push("-f", `mineQ=${q.mineQ}`);

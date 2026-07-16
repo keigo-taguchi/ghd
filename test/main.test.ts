@@ -31,6 +31,7 @@ interface Captured {
   out: string;
   err: string;
   runner: FakeGhRunner;
+  opened: string[];
 }
 
 async function exec(
@@ -41,6 +42,7 @@ async function exec(
   const runner = new FakeGhRunner(ghResult);
   let out = "";
   let err = "";
+  const opened: string[] = [];
   const code = await run({
     runner,
     env: { LANG: "ja_JP.UTF-8" },
@@ -50,9 +52,13 @@ async function exec(
     nowMs: NOW,
     stdout: (s) => (out += s),
     stderr: (s) => (err += s),
+    openUrl: (url) => {
+      opened.push(url);
+      return Promise.resolve(true);
+    },
     ...depsOverride,
   });
-  return { code, out, err, runner };
+  return { code, out, err, runner, opened };
 }
 
 const ok = (fixture: unknown) => ({ stdout: JSON.stringify(fixture), code: 0 });
@@ -135,6 +141,103 @@ describe("run 正常系", () => {
   it("--lang en で英語表示", async () => {
     const r = await exec(["--lang", "en"], ok(full));
     expect(r.out).toContain("Review requests");
+  });
+});
+
+describe("run openモード (ghd <番号>)", () => {
+  it("一意ヒット: URLをstdoutへ出しブラウザを開く・番号が検索クエリに付く", async () => {
+    const r = await exec(["485"], ok(full));
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("https://github.com/cureapp/api/pull/485\n");
+    expect(r.opened).toEqual(["https://github.com/cureapp/api/pull/485"]);
+    // 1往復のまま: 3セクション検索へ番号を追記し limit は最大値
+    expect(r.runner.calls).toHaveLength(1);
+    const { args } = r.runner.calls[0]!;
+    const joined = args.join(" ");
+    expect(joined).toContain("sort:updated-desc 485");
+    expect(args).toContain("limit=50");
+    expect(joined).toContain("reviewQ=");
+    expect(joined).toContain("mineQ=");
+    expect(joined).toContain("issueQ=");
+  });
+
+  it("非TTY: URL出力のみでブラウザは開かない", async () => {
+    const r = await exec(["485"], ok(full), { isTTY: false });
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("https://github.com/cureapp/api/pull/485\n");
+    expect(r.opened).toEqual([]);
+  });
+
+  it("見つからない番号 → exit 1 + 案内", async () => {
+    const r = await exec(["9999"], ok(full));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("#9999");
+    expect(r.opened).toEqual([]);
+  });
+
+  it("複数ヒット（別リポジトリ同番号）→ 開かず候補一覧 + exit 1", async () => {
+    // full の #482 (review) と同番号の issue を合成
+    const fixture = structuredClone(full) as typeof full & {
+      data: { assigned: { nodes: unknown[] } };
+    };
+    fixture.data.assigned.nodes.push({
+      number: 482,
+      title: "同番号のissue",
+      url: "https://github.com/cureapp/app/issues/482",
+      updatedAt: "2026-07-09T09:00:00Z",
+      repository: { nameWithOwner: "cureapp/app" },
+      labels: { nodes: [] },
+    });
+    const r = await exec(["482"], ok(fixture));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("複数見つかりました");
+    expect(r.out).toContain("https://github.com/cureapp/api/pull/482");
+    expect(r.out).toContain("https://github.com/cureapp/app/issues/482");
+    expect(r.opened).toEqual([]);
+  });
+
+  it("同一PRが複数セクションに出てもURLで重複排除され一意扱い", async () => {
+    // #482 を myPRs にも複製（review と同じ URL）
+    const fixture = structuredClone(full) as typeof full & {
+      data: { myPRs: { nodes: unknown[] } };
+    };
+    fixture.data.myPRs.nodes.push({
+      ...structuredClone(fixture.data.reviewRequested.nodes[0]),
+      reviewDecision: null,
+      mergeable: "UNKNOWN",
+      commits: { nodes: [] },
+    });
+    const r = await exec(["482"], ok(fixture));
+    expect(r.code).toBe(0);
+    expect(r.opened).toEqual(["https://github.com/cureapp/api/pull/482"]);
+  });
+
+  it("ブラウザ起動失敗 → URLは出力済みなので警告のみで exit 0", async () => {
+    const r = await exec(["485"], ok(full), {
+      openUrl: () => Promise.resolve(false),
+    });
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("https://github.com/cureapp/api/pull/485\n");
+    expect(r.err).toContain("ブラウザを起動できませんでした");
+  });
+
+  it("https以外のURLは開かない", async () => {
+    const fixture = structuredClone(full) as typeof full;
+    fixture.data.myPRs.nodes[1]!.url = "javascript:alert(1)";
+    const r = await exec(["485"], ok(fixture));
+    expect(r.code).toBe(1);
+    expect(r.opened).toEqual([]);
+  });
+
+  it("--json との併用 → exit 2", async () => {
+    const r = await exec(["485", "--json"], ok(full));
+    expect(r.code).toBe(2);
+    expect(r.runner.calls).toHaveLength(0);
+  });
+
+  it("0 や範囲外の番号 → exit 2", async () => {
+    expect((await exec(["0"], ok(full))).code).toBe(2);
+    expect((await exec(["99999999999"], ok(full))).code).toBe(2);
   });
 });
 

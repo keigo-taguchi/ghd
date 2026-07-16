@@ -29,6 +29,15 @@ describe("buildSearchQueries", () => {
       expect(s).toContain("org:myorg");
     }
   });
+
+  it("openモード: 番号が検索語として各クエリ末尾に付く", () => {
+    const q = buildSearchQueries([], 488);
+    for (const s of [q.reviewQ, q.mineQ, q.issueQ]) {
+      expect(s.endsWith(" 488")).toBe(true);
+    }
+    // 番号なしでは付かない
+    expect(buildSearchQueries([]).mineQ).not.toContain("488");
+  });
 });
 
 describe("buildGraphQLQuery", () => {

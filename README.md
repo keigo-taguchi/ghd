@@ -46,6 +46,7 @@ $ ghd            # 3セクション全部
 $ ghd review     # レビュー待ちのみ（先頭一致: ghd r でも可）
 $ ghd pr         # 自分のPRのみ (ghd p)
 $ ghd issue      # アサインIssueのみ (ghd i)
+$ ghd 488        # その番号のPR/Issueをブラウザで開く（非TTYではURL出力のみ）
 
 $ ghd --org cureapp          # 組織で絞り込み（繰り返し指定可）
 $ ghd --limit 30             # セクションあたり表示件数（既定10・最大50）
@@ -54,6 +55,8 @@ $ watch -c 'FORCE_COLOR=1 ghd'   # 簡易watchモード（色付き）
 ```
 
 言語は `--lang ja|en` > `GHD_LANG` > `LC_ALL`/`LANG` で自動判定。色は `--no-color` > `NO_COLOR` > `FORCE_COLOR=1` > TTY判定。
+
+`ghd <番号>` は3セクション（レビュー待ち・自分のPR・アサインIssue）を1往復で検索して開く。ブラウザは `BROWSER` 環境変数 > OS既定（`open`/`xdg-open`/`start`）。同番号が複数リポジトリでヒットした場合は開かずに候補一覧を表示する。
 
 ## 表示の読み方
 
