@@ -74,6 +74,8 @@ const ISSUE_PROJECT_FIELDS = `
 export interface QueryDocOptions {
   /** false で projectItems を文書から除去（スコープ縮退リトライ用）。既定 true */
   projects?: boolean;
+  /** true で nodes を要求せず issueCount のみ取得（--count 用。既定 false） */
+  countOnly?: boolean;
 }
 
 /** 要求セクションに対応する search 節だけを含む GraphQL 文書を生成する。 */
@@ -82,31 +84,35 @@ export function buildGraphQLQuery(
   docOpts: QueryDocOptions = {},
 ): string {
   const projects = docOpts.projects ?? true;
+  const countOnly = docOpts.countOnly ?? false;
   const vars: string[] = ["$limit: Int!"];
   const blocks: string[] = [];
+
+  // countOnly でも search の first: は必須引数なので $limit は残る（呼び出し側が 1 を渡す）
+  const body = (nodesBlock: string) => (countOnly ? "issueCount" : `issueCount${nodesBlock}`);
 
   if (sections.includes("review")) {
     vars.push("$reviewQ: String!");
     blocks.push(`  reviewRequested: search(query: $reviewQ, type: ISSUE, first: $limit) {
-    issueCount
+    ${body(`
     nodes { ... on PullRequest {${PR_LITE_FIELDS}
-    } }
+    } }`)}
   }`);
   }
   if (sections.includes("pr")) {
     vars.push("$mineQ: String!");
     blocks.push(`  myPRs: search(query: $mineQ, type: ISSUE, first: $limit) {
-    issueCount
+    ${body(`
     nodes { ... on PullRequest {${PR_FULL_FIELDS}
-    } }
+    } }`)}
   }`);
   }
   if (sections.includes("issue")) {
     vars.push("$issueQ: String!");
     blocks.push(`  assigned: search(query: $issueQ, type: ISSUE, first: $limit) {
-    issueCount
+    ${body(`
     nodes { ... on Issue {${ISSUE_FIELDS}${projects ? ISSUE_PROJECT_FIELDS : ""}
-    } }
+    } }`)}
   }`);
   }
 

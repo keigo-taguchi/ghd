@@ -149,6 +149,53 @@ describe("run 正常系", () => {
   });
 });
 
+describe("run countモード (--count)", () => {
+  it("R P I の件数を1行で出力・nodes なしクエリ・limit=1", async () => {
+    const r = await exec(["--count", "--no-color"], ok(full));
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("R2 P3 I5\n");
+    expect(r.err).toBe("");
+    const { args, opts } = r.runner.calls[0]!;
+    expect(args).toContain("limit=1");
+    expect(opts.stdin).not.toContain("nodes");
+  });
+
+  it("サブコマンド絞り込み: ghd r --count は R のみ", async () => {
+    const r = await exec(["r", "--count", "--no-color"], ok(full));
+    expect(r.out).toBe("R2\n");
+  });
+
+  it("色あり: レビュー待ち>0 は赤・0件は dim", async () => {
+    const r = await exec(["--count"], ok(full)); // isTTY: true → 色あり
+    expect(r.out).toContain("[31mR2[39m");
+    const zero = await exec(["--count"], ok(empty));
+    expect(zero.out).toContain("[2mR0[22m");
+  });
+
+  it("全0件でも数値を出す（allClear 文言にしない: パース安定性優先）", async () => {
+    const r = await exec(["--count", "--no-color"], ok(empty));
+    expect(r.out).toBe("R0 P0 I0\n");
+  });
+
+  it("部分エラー: 欠落セクションは ? で埋め、警告は stderr・exit 0", async () => {
+    const r = await exec(["--count", "--no-color"], ok(partial));
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("R? P1 I0\n");
+    expect(r.err).toContain("一部のリポジトリ");
+  });
+
+  it("--json との併用 → exit 2", async () => {
+    const r = await exec(["--count", "--json"], ok(full));
+    expect(r.code).toBe(2);
+    expect(r.runner.calls).toHaveLength(0);
+  });
+
+  it("<番号> との併用 → exit 2", async () => {
+    const r = await exec(["485", "--count"], ok(full));
+    expect(r.code).toBe(2);
+  });
+});
+
 describe("run Projects V2 スコープ縮退", () => {
   const scopeRejected = {
     stdout: JSON.stringify({

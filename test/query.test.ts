@@ -85,6 +85,17 @@ describe("buildGraphQLQuery", () => {
     expect(doc).not.toContain("projectItems");
     expect(doc).toContain("... on Issue");
   });
+
+  it("countOnly: issueCount のみで nodes を要求しない", () => {
+    const doc = buildGraphQLQuery(["review", "pr", "issue"], { countOnly: true });
+    expect(doc).toContain("issueCount");
+    expect(doc).not.toContain("nodes");
+    expect(doc).not.toContain("statusCheckRollup");
+    expect(doc).not.toContain("projectItems");
+    // search の first: は必須引数なので $limit は残る
+    expect(doc).toContain("first: $limit");
+    expect(doc).toContain("rateLimit");
+  });
 });
 
 describe("buildGhArgs", () => {

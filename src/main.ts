@@ -17,7 +17,8 @@ import { type Lang, type MessageKey, resolveLang, t } from "./i18n.js";
 import { ALL_SECTIONS, type Section } from "./model.js";
 import { type ParsedResponse, parseResponse } from "./parse.js";
 import { buildGhArgs, buildGraphQLQuery, clampLimit } from "./query.js";
-import { resolveColor } from "./render/ansi.js";
+import { makeAnsi, resolveColor } from "./render/ansi.js";
+import { renderCount } from "./render/count.js";
 import { renderJson } from "./render/json.js";
 import { renderDashboard, warningLines } from "./render/render.js";
 import { VERSION } from "./version.js";
@@ -74,6 +75,7 @@ function usage(lang: Lang): string {
 オプション:
   --org <name>    組織で絞り込み（繰り返し指定可）
   --limit <n>     セクションあたり表示件数 (既定 10, 最大 50)
+  --count         件数のみ1行で出力 (例: R2 P3 I1)。プロンプト組み込み用
   --json          機械可読JSONで出力
   --no-color      色を無効化
   --lang ja|en    表示言語
@@ -105,6 +107,7 @@ Sections (prefix match: r / p / i also work):
 Options:
   --org <name>    filter by organization (repeatable)
   --limit <n>     items per section (default 10, max 50)
+  --count         one-line counts only (e.g. R2 P3 I1), for prompts/statuslines
   --json          machine-readable JSON output
   --no-color      disable colors
   --lang ja|en    display language
@@ -127,6 +130,8 @@ interface ParsedCli {
   orgs: string[];
   limit: number;
   json: boolean;
+  /** --count: 件数のみ1行出力 */
+  count: boolean;
   noColor: boolean;
   lang: Lang;
   help: boolean;
@@ -143,6 +148,7 @@ function parseCli(
     org?: string[];
     limit?: string;
     json?: boolean;
+    count?: boolean;
     "no-color"?: boolean;
     lang?: string;
     help?: boolean;
@@ -156,6 +162,7 @@ function parseCli(
         org: { type: "string", multiple: true },
         limit: { type: "string" },
         json: { type: "boolean" },
+        count: { type: "boolean" },
         "no-color": { type: "boolean" },
         lang: { type: "string" },
         help: { type: "boolean", short: "h" },
@@ -203,6 +210,12 @@ function parseCli(
   if (open !== null && values.json === true) {
     return { usageError: "--json cannot be combined with <number>" };
   }
+  if (open !== null && values.count === true) {
+    return { usageError: "--count cannot be combined with <number>" };
+  }
+  if (values.count === true && values.json === true) {
+    return { usageError: "--count cannot be combined with --json" };
+  }
 
   let limit = DEFAULT_LIMIT;
   if (values.limit !== undefined) {
@@ -218,6 +231,7 @@ function parseCli(
     orgs: values.org ?? [],
     limit,
     json: values.json ?? false,
+    count: values.count ?? false,
     noColor: values["no-color"] ?? false,
     lang,
     help: values.help ?? false,
@@ -339,14 +353,15 @@ export async function run(deps: Deps): Promise<number> {
     return EXIT_CODES.ok;
   }
 
-  // open モードは3セクション全部を最大件数で検索する（見落とし防止優先）
+  // open モードは3セクション全部を最大件数で検索する（見落とし防止優先）。
+  // count モードは nodes を要求しないため first は最小の 1 でよい
   const sections = cli.open !== null ? ALL_SECTIONS : cli.sections;
   const ghArgs = buildGhArgs(sections, {
     orgs: cli.orgs,
-    limit: cli.open !== null ? OPEN_SEARCH_LIMIT : cli.limit,
+    limit: cli.open !== null ? OPEN_SEARCH_LIMIT : cli.count ? 1 : cli.limit,
     ...(cli.open !== null ? { number: cli.open } : {}),
   });
-  const doc = buildGraphQLQuery(sections);
+  const doc = buildGraphQLQuery(sections, { countOnly: cli.count });
   let result = await deps.runner.exec(ghArgs, { stdin: doc, timeoutMs: TIMEOUT_MS });
   let parsed = parseResponse(result.stdout, sections);
 
@@ -407,6 +422,16 @@ export async function run(deps: Deps): Promise<number> {
   const rl = outcome.parsed.rateLimit;
   if (rl !== undefined && rl.remaining < RATE_WARN_THRESHOLD) {
     deps.stderr(t(cli.lang, "warn.rateLow", { remaining: rl.remaining }) + "\n");
+  }
+
+  if (cli.count) {
+    // --count: stdout は1行のみ（コマンド置換で埋め込める）。警告は stderr へ
+    const color = resolveColor(cli.noColor, deps.env, deps.isTTY);
+    deps.stdout(renderCount(dashboard, cli.sections, makeAnsi(color)));
+    for (const w of warningLines(dashboard.warnings, cli.lang)) {
+      deps.stderr(w + "\n");
+    }
+    return EXIT_CODES.ok;
   }
 
   if (cli.json) {
