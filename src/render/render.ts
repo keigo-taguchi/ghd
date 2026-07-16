@@ -248,7 +248,7 @@ function prBadge(item: MyPrItem, p: Palette): string {
   }
 }
 
-/** 詳細列は1つだけ: CI失敗チェック名 > ⚠ conflict > レビュー状態語。draft は空。 */
+/** 詳細列は1つだけ: CI失敗チェック名 > ⚠ conflict > merge可 > レビュー状態語。draft は空。 */
 function prDetail(item: MyPrItem, opts: RenderOptions, p: Palette): string {
   if (item.draft) return padEnd("", DETAIL_W);
   if (item.ci === "fail" && (item.ciFailedChecks.length > 0 || item.ciMoreFailures)) {
@@ -262,6 +262,10 @@ function prDetail(item: MyPrItem, opts: RenderOptions, p: Palette): string {
   }
   if (item.conflict) {
     return p.yellow(padEnd(truncate(t(opts.lang, "conflict"), DETAIL_W), DETAIL_W));
+  }
+  // ready は approved の上位互換表示（ready ⇒ approved なので先に判定）
+  if (item.ready) {
+    return p.green(p.bold(padEnd(truncate(t(opts.lang, "pr.ready"), DETAIL_W), DETAIL_W)));
   }
   if (item.review === "approved") {
     return p.green(padEnd(truncate(t(opts.lang, "review.approved"), DETAIL_W), DETAIL_W));
@@ -323,7 +327,8 @@ function renderTsv(d: Dashboard, opts: RenderOptions): string {
         ? "draft"
         : i.ci +
           (i.review !== null ? `/${i.review}` : "") +
-          (i.conflict ? "/conflict" : "");
+          (i.conflict ? "/conflict" : "") +
+          (i.ready ? "/ready" : "");
       rows.push(["pr", `${i.number}`, i.repo, i.title, state, i.updatedAt, i.url]);
     }
   }

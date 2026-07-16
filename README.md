@@ -68,6 +68,7 @@ $ watch -c 'FORCE_COLOR=1 ghd'   # 簡易watchモード（色付き）
 | `–` | CI未設定（force-push直後含む） |
 | `● draft` | ドラフト（CI・レビュー状態は表示しない: draftの赤はまだアクションではない） |
 | `approve待ち` / `approved` / `要修正` | reviewDecision。レビュー必須でないリポジトリでは何も出さない |
+| `⏎ merge可` | CI成功 + approved + コンフリクトなし。あとはマージするだけ（セクション先頭に浮上） |
 | `⚠ conflict` | マージコンフリクト |
 
 ## 終了コード

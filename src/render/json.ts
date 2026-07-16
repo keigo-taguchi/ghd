@@ -39,6 +39,7 @@ export function renderJson(
       ciMoreFailures: i.ciMoreFailures,
       review: i.review,
       conflict: i.conflict,
+      ready: i.ready,
       updatedAt: i.updatedAt,
     }));
   }

@@ -24,7 +24,7 @@ function validateV1(o: Record<string, unknown>): string[] {
   for (const pr of (o["myPullRequests"] as Record<string, unknown>[]) ?? []) {
     for (const key of [
       "number", "title", "repo", "url", "draft", "ci",
-      "ciFailedChecks", "ciMoreFailures", "review", "conflict", "updatedAt",
+      "ciFailedChecks", "ciMoreFailures", "review", "conflict", "ready", "updatedAt",
     ]) {
       if (!(key in pr)) problems.push(`myPullRequests[].${key} missing`);
     }

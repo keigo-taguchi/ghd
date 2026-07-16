@@ -25,7 +25,7 @@
       ]
     },
     "myPRs": {
-      "issueCount": 6,
+      "issueCount": 7,
       "nodes": [
         {},
         {
@@ -143,6 +143,33 @@
                       "totalCount": 1,
                       "nodes": [
                         { "__typename": "StatusContext", "context": "ci/jenkins", "state": "ERROR" }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "number": 915,
+          "title": "feat: pass+approved+MERGEABLE（merge可・末尾でも先頭に浮上）",
+          "url": "https://github.com/acme/lib/pull/915",
+          "isDraft": false,
+          "updatedAt": "2026-07-09T23:00:00Z",
+          "reviewDecision": "APPROVED",
+          "mergeable": "MERGEABLE",
+          "repository": { "nameWithOwner": "acme/lib" },
+          "commits": {
+            "nodes": [
+              {
+                "commit": {
+                  "statusCheckRollup": {
+                    "state": "SUCCESS",
+                    "contexts": {
+                      "totalCount": 1,
+                      "nodes": [
+                        { "__typename": "CheckRun", "name": "build", "status": "COMPLETED", "conclusion": "SUCCESS" }
                       ]
                     }
                   }

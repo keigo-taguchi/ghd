@@ -139,6 +139,25 @@ describe("toDashboard", () => {
     const d = toDashboard(parseResponse(S(edge), ["issue"])!, ["issue"]);
     expect(d.assignedIssues?.items[0]?.title).toBe("制御文字[31m入りタイトル");
   });
+
+  it("ready: pass+approved+MERGEABLE のみ true・セクション先頭へ浮上", () => {
+    const d = toDashboard(parseResponse(S(edge), ["pr"])!, ["pr"]);
+    const items = d.myPullRequests!.items;
+    // #915 は updated-desc では末尾だが ready なので先頭へ（他は元の順序を保つ）
+    expect(items.map((i) => i.number)).toEqual([915, 910, 911, 912, 913, 914]);
+    expect(items[0]?.ready).toBe(true);
+    // approved でも CI fail (#911) は ready にならない
+    expect(items.find((i) => i.number === 911)?.ready).toBe(false);
+  });
+
+  it("ready: CI未設定(none)・approve待ちは偽陽性にしない", () => {
+    // #488 (full) は pass+MERGEABLE でも REVIEW_REQUIRED なので ready ではない
+    const d = toDashboard(parseResponse(S(full), ["pr"])!, ["pr"]);
+    expect(d.myPullRequests?.items.every((i) => !i.ready)).toBe(true);
+    // #910 (edge) は commits 空で ci=none（approved でもないが、none 除外の見張り）
+    const e = toDashboard(parseResponse(S(edge), ["pr"])!, ["pr"]);
+    expect(e.myPullRequests?.items.find((i) => i.number === 910)?.ready).toBe(false);
+  });
 });
 
 describe("isTotalFailure", () => {

@@ -28,6 +28,8 @@ export interface MyPrItem {
   ciMoreFailures: boolean;
   review: ReviewState;
   conflict: boolean;
+  /** CI pass + approved + mergeable=MERGEABLE の合成状態: あとはマージするだけ */
+  ready: boolean;
   updatedAt: string;
 }
 

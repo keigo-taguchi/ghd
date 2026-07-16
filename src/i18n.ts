@@ -16,6 +16,7 @@ const ja = {
   "review.waiting": "approve待ち",
   "review.changes_requested": "要修正",
   "review.approved": "approved",
+  "pr.ready": "⏎ merge可",
   "conflict": "⚠ conflict",
   "ci.hiddenFailures": "他にも失敗あり",
   "open.notFound":
@@ -51,6 +52,7 @@ const en: Record<MessageKey, string> = {
   "review.waiting": "needs review",
   "review.changes_requested": "changes req",
   "review.approved": "approved",
+  "pr.ready": "⏎ ready",
   "conflict": "⚠ conflict",
   "ci.hiddenFailures": "more failures",
   "open.notFound":
