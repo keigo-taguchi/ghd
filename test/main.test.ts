@@ -351,7 +351,7 @@ describe("run ヘルプ・バージョン・usage エラー", () => {
   it("-V はバージョンのみ", async () => {
     const r = await exec(["-V"], ok(full));
     expect(r.code).toBe(0);
-    expect(r.out.trim()).toBe("0.1.0");
+    expect(r.out.trim()).toBe("0.2.0");
   });
 
   it("未知フラグ → exit 2 + usage を stderr へ", async () => {
