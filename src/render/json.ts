@@ -39,6 +39,7 @@ export function renderJson(
       ciMoreFailures: i.ciMoreFailures,
       review: i.review,
       conflict: i.conflict,
+      ready: i.ready,
       updatedAt: i.updatedAt,
     }));
   }
@@ -50,6 +51,7 @@ export function renderJson(
       url: i.url,
       labels: i.labels,
       priority: i.priority,
+      projectStatus: i.projectStatus,
       updatedAt: i.updatedAt,
     }));
   }

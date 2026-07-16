@@ -9,19 +9,24 @@ import rateLimited from "./fixtures/rate-limited.json";
 
 const NOW = Date.parse("2026-07-10T09:00:00Z");
 
-/** テーブル駆動の FakeGhRunner。呼び出しを記録し、固定レスポンスを返す。 */
+/** テーブル駆動の FakeGhRunner。呼び出しを記録し、固定レスポンスを返す。
+ *  配列を渡すと呼び出しごとに順に消費する（縮退リトライのテスト用）。 */
 class FakeGhRunner implements GhRunner {
   calls: { args: string[]; opts: GhExecOptions }[] = [];
-  constructor(private result: Partial<GhExecResult>) {}
+  private results: Partial<GhExecResult>[];
+  constructor(result: Partial<GhExecResult> | Partial<GhExecResult>[]) {
+    this.results = Array.isArray(result) ? [...result] : [result];
+  }
   exec(args: string[], opts: GhExecOptions): Promise<GhExecResult> {
     this.calls.push({ args, opts });
+    const r = this.results.length > 1 ? this.results.shift()! : this.results[0]!;
     return Promise.resolve({
       stdout: "",
       stderr: "",
       code: 0,
       enoent: false,
       timedOut: false,
-      ...this.result,
+      ...r,
     });
   }
 }
@@ -31,16 +36,18 @@ interface Captured {
   out: string;
   err: string;
   runner: FakeGhRunner;
+  opened: string[];
 }
 
 async function exec(
   argv: string[],
-  ghResult: Partial<GhExecResult>,
+  ghResult: Partial<GhExecResult> | Partial<GhExecResult>[],
   depsOverride: Partial<Deps> = {},
 ): Promise<Captured> {
   const runner = new FakeGhRunner(ghResult);
   let out = "";
   let err = "";
+  const opened: string[] = [];
   const code = await run({
     runner,
     env: { LANG: "ja_JP.UTF-8" },
@@ -50,9 +57,13 @@ async function exec(
     nowMs: NOW,
     stdout: (s) => (out += s),
     stderr: (s) => (err += s),
+    openUrl: (url) => {
+      opened.push(url);
+      return Promise.resolve(true);
+    },
     ...depsOverride,
   });
-  return { code, out, err, runner };
+  return { code, out, err, runner, opened };
 }
 
 const ok = (fixture: unknown) => ({ stdout: JSON.stringify(fixture), code: 0 });
@@ -138,6 +149,197 @@ describe("run 正常系", () => {
   });
 });
 
+describe("run countモード (--count)", () => {
+  it("R P I の件数を1行で出力・nodes なしクエリ・limit=1", async () => {
+    const r = await exec(["--count", "--no-color"], ok(full));
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("R2 P3 I5\n");
+    expect(r.err).toBe("");
+    const { args, opts } = r.runner.calls[0]!;
+    expect(args).toContain("limit=1");
+    expect(opts.stdin).not.toContain("nodes");
+  });
+
+  it("サブコマンド絞り込み: ghd r --count は R のみ", async () => {
+    const r = await exec(["r", "--count", "--no-color"], ok(full));
+    expect(r.out).toBe("R2\n");
+  });
+
+  it("色あり: レビュー待ち>0 は赤・0件は dim", async () => {
+    const r = await exec(["--count"], ok(full)); // isTTY: true → 色あり
+    expect(r.out).toContain("[31mR2[39m");
+    const zero = await exec(["--count"], ok(empty));
+    expect(zero.out).toContain("[2mR0[22m");
+  });
+
+  it("全0件でも数値を出す（allClear 文言にしない: パース安定性優先）", async () => {
+    const r = await exec(["--count", "--no-color"], ok(empty));
+    expect(r.out).toBe("R0 P0 I0\n");
+  });
+
+  it("部分エラー: 欠落セクションは ? で埋め、警告は stderr・exit 0", async () => {
+    const r = await exec(["--count", "--no-color"], ok(partial));
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("R? P1 I0\n");
+    expect(r.err).toContain("一部のリポジトリ");
+  });
+
+  it("--json との併用 → exit 2", async () => {
+    const r = await exec(["--count", "--json"], ok(full));
+    expect(r.code).toBe(2);
+    expect(r.runner.calls).toHaveLength(0);
+  });
+
+  it("<番号> との併用 → exit 2", async () => {
+    const r = await exec(["485", "--count"], ok(full));
+    expect(r.code).toBe(2);
+  });
+});
+
+describe("run Projects V2 スコープ縮退", () => {
+  const scopeRejected = {
+    stdout: JSON.stringify({
+      data: null,
+      errors: [
+        {
+          type: "INSUFFICIENT_SCOPES",
+          message:
+            "Your token has not been granted the required scopes to execute this query. The 'projectItems' field requires one of the following scopes: ['read:project'], but your token has only been granted the: ['repo'] scopes.",
+        },
+      ],
+    }),
+    code: 1,
+  };
+
+  it("read:projectなし → projectItems抜きで1回だけ再試行し、ヒントを添えて描画", async () => {
+    const r = await exec([], [scopeRejected, ok(full)]);
+    expect(r.code).toBe(0);
+    expect(r.runner.calls).toHaveLength(2);
+    expect(r.runner.calls[0]!.opts.stdin).toContain("projectItems");
+    expect(r.runner.calls[1]!.opts.stdin).not.toContain("projectItems");
+    expect(r.out).toContain("▶ レビュー待ち (2)");
+    expect(r.out).toContain("read:project");
+    // スコープ不足は partial_error（アクセス不可）扱いにしない
+    expect(r.out).not.toContain("一部のリポジトリ");
+  });
+
+  it("issueセクションを含まない実行では再試行しない", async () => {
+    const r = await exec(["pr"], [scopeRejected, ok(full)]);
+    expect(r.runner.calls).toHaveLength(1);
+    expect(r.code).toBe(1);
+  });
+
+  it("スコープ以外の全滅エラーでは再試行しない", async () => {
+    const boom = {
+      stdout: JSON.stringify({
+        data: null,
+        errors: [{ type: "SOME_ERROR", message: "boom" }],
+      }),
+      code: 1,
+    };
+    const r = await exec([], [boom, ok(full)]);
+    expect(r.runner.calls).toHaveLength(1);
+    expect(r.code).toBe(1);
+  });
+});
+
+describe("run openモード (ghd <番号>)", () => {
+  it("一意ヒット: URLをstdoutへ出しブラウザを開く・番号が検索クエリに付く", async () => {
+    const r = await exec(["485"], ok(full));
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("https://github.com/cureapp/api/pull/485\n");
+    expect(r.opened).toEqual(["https://github.com/cureapp/api/pull/485"]);
+    // 1往復のまま: 3セクション検索へ番号を追記し limit は最大値
+    expect(r.runner.calls).toHaveLength(1);
+    const { args } = r.runner.calls[0]!;
+    const joined = args.join(" ");
+    expect(joined).toContain("sort:updated-desc 485");
+    expect(args).toContain("limit=50");
+    expect(joined).toContain("reviewQ=");
+    expect(joined).toContain("mineQ=");
+    expect(joined).toContain("issueQ=");
+  });
+
+  it("非TTY: URL出力のみでブラウザは開かない", async () => {
+    const r = await exec(["485"], ok(full), { isTTY: false });
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("https://github.com/cureapp/api/pull/485\n");
+    expect(r.opened).toEqual([]);
+  });
+
+  it("見つからない番号 → exit 1 + 案内", async () => {
+    const r = await exec(["9999"], ok(full));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("#9999");
+    expect(r.opened).toEqual([]);
+  });
+
+  it("複数ヒット（別リポジトリ同番号）→ 開かず候補一覧 + exit 1", async () => {
+    // full の #482 (review) と同番号の issue を合成
+    const fixture = structuredClone(full) as typeof full & {
+      data: { assigned: { nodes: unknown[] } };
+    };
+    fixture.data.assigned.nodes.push({
+      number: 482,
+      title: "同番号のissue",
+      url: "https://github.com/cureapp/app/issues/482",
+      updatedAt: "2026-07-09T09:00:00Z",
+      repository: { nameWithOwner: "cureapp/app" },
+      labels: { nodes: [] },
+    });
+    const r = await exec(["482"], ok(fixture));
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("複数見つかりました");
+    expect(r.out).toContain("https://github.com/cureapp/api/pull/482");
+    expect(r.out).toContain("https://github.com/cureapp/app/issues/482");
+    expect(r.opened).toEqual([]);
+  });
+
+  it("同一PRが複数セクションに出てもURLで重複排除され一意扱い", async () => {
+    // #482 を myPRs にも複製（review と同じ URL）
+    const fixture = structuredClone(full) as typeof full & {
+      data: { myPRs: { nodes: unknown[] } };
+    };
+    fixture.data.myPRs.nodes.push({
+      ...structuredClone(fixture.data.reviewRequested.nodes[0]),
+      reviewDecision: null,
+      mergeable: "UNKNOWN",
+      commits: { nodes: [] },
+    });
+    const r = await exec(["482"], ok(fixture));
+    expect(r.code).toBe(0);
+    expect(r.opened).toEqual(["https://github.com/cureapp/api/pull/482"]);
+  });
+
+  it("ブラウザ起動失敗 → URLは出力済みなので警告のみで exit 0", async () => {
+    const r = await exec(["485"], ok(full), {
+      openUrl: () => Promise.resolve(false),
+    });
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("https://github.com/cureapp/api/pull/485\n");
+    expect(r.err).toContain("ブラウザを起動できませんでした");
+  });
+
+  it("https以外のURLは開かない", async () => {
+    const fixture = structuredClone(full) as typeof full;
+    fixture.data.myPRs.nodes[1]!.url = "javascript:alert(1)";
+    const r = await exec(["485"], ok(fixture));
+    expect(r.code).toBe(1);
+    expect(r.opened).toEqual([]);
+  });
+
+  it("--json との併用 → exit 2", async () => {
+    const r = await exec(["485", "--json"], ok(full));
+    expect(r.code).toBe(2);
+    expect(r.runner.calls).toHaveLength(0);
+  });
+
+  it("0 や範囲外の番号 → exit 2", async () => {
+    expect((await exec(["0"], ok(full))).code).toBe(2);
+    expect((await exec(["99999999999"], ok(full))).code).toBe(2);
+  });
+});
+
 describe("run ヘルプ・バージョン・usage エラー", () => {
   it("--help は gh を呼ばず usage を stdout へ", async () => {
     const r = await exec(["--help"], ok(full));
@@ -149,7 +351,7 @@ describe("run ヘルプ・バージョン・usage エラー", () => {
   it("-V はバージョンのみ", async () => {
     const r = await exec(["-V"], ok(full));
     expect(r.code).toBe(0);
-    expect(r.out.trim()).toBe("0.1.0");
+    expect(r.out.trim()).toBe("0.2.0");
   });
 
   it("未知フラグ → exit 2 + usage を stderr へ", async () => {

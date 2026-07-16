@@ -16,10 +16,18 @@ const ja = {
   "review.waiting": "approve待ち",
   "review.changes_requested": "要修正",
   "review.approved": "approved",
+  "pr.ready": "⏎ merge可",
   "conflict": "⚠ conflict",
   "ci.hiddenFailures": "他にも失敗あり",
+  "open.notFound":
+    "#{number} は自分に関係する open な PR/Issue に見つかりません（gh pr view --web -R owner/repo で直接開けます）",
+  "open.multiple": "#{number} が複数見つかりました。URL を直接開いてください:",
+  "open.browserFailed": "ブラウザを起動できませんでした。上のURLを直接開いてください",
+  "open.badUrl": "https 以外のURLのため開きません",
   "warn.partial": "⚠ 一部のリポジトリにアクセスできませんでした",
   "warn.parseSkipped": "⚠ {n}件を解析できませんでした",
+  "warn.projectScope":
+    "ℹ プロジェクト列の表示には read:project スコープが必要です: gh auth refresh -s read:project",
   "warn.rateLow": "⚠ APIレート制限の残量が少なくなっています (残り {remaining})",
   "err.ghNotFound":
     "gh が見つかりません。https://cli.github.com からインストールしてください",
@@ -46,10 +54,18 @@ const en: Record<MessageKey, string> = {
   "review.waiting": "needs review",
   "review.changes_requested": "changes req",
   "review.approved": "approved",
+  "pr.ready": "⏎ ready",
   "conflict": "⚠ conflict",
   "ci.hiddenFailures": "more failures",
+  "open.notFound":
+    "#{number} not found among your open PRs/issues (try: gh pr view --web -R owner/repo)",
+  "open.multiple": "Multiple matches for #{number}. Open a URL directly:",
+  "open.browserFailed": "Could not launch a browser. Open the URL above directly",
+  "open.badUrl": "Refusing to open a non-https URL",
   "warn.partial": "⚠ Some repositories could not be accessed",
   "warn.parseSkipped": "⚠ Skipped {n} unparseable item(s)",
+  "warn.projectScope":
+    "ℹ Project status needs the read:project scope: gh auth refresh -s read:project",
   "warn.rateLow": "⚠ API rate limit is running low ({remaining} left)",
   "err.ghNotFound":
     "gh not found. Install it from https://cli.github.com",

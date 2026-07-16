@@ -24,7 +24,7 @@ function validateV1(o: Record<string, unknown>): string[] {
   for (const pr of (o["myPullRequests"] as Record<string, unknown>[]) ?? []) {
     for (const key of [
       "number", "title", "repo", "url", "draft", "ci",
-      "ciFailedChecks", "ciMoreFailures", "review", "conflict", "updatedAt",
+      "ciFailedChecks", "ciMoreFailures", "review", "conflict", "ready", "updatedAt",
     ]) {
       if (!(key in pr)) problems.push(`myPullRequests[].${key} missing`);
     }
@@ -39,7 +39,7 @@ function validateV1(o: Record<string, unknown>): string[] {
     }
   }
   for (const i of (o["assignedIssues"] as Record<string, unknown>[]) ?? []) {
-    for (const key of ["number", "title", "repo", "url", "labels", "priority", "updatedAt"]) {
+    for (const key of ["number", "title", "repo", "url", "labels", "priority", "projectStatus", "updatedAt"]) {
       if (!(key in i)) problems.push(`assignedIssues[].${key} missing`);
     }
   }

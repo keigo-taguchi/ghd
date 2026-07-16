@@ -9,21 +9,29 @@ import type { Section } from "./model.js";
 export interface QueryOptions {
   orgs: string[];
   limit: number;
+  /** ghd <番号>: 各検索クエリに番号を検索語として追記する（number: 修飾子は
+   *  search に存在しないため。裸の番号は該当番号の Issue/PR に一致することを
+   *  実測確認済み。テキスト一致の混入は呼び出し側で number 完全一致に絞る） */
+  number?: number;
 }
 
 const ORG = (orgs: string[]) => orgs.map((o) => ` org:${o}`).join("");
 
 /** レビュー待ちは draft:false でノイズ除去。全クエリ sort:updated-desc 必須。 */
-export function buildSearchQueries(orgs: string[]): {
+export function buildSearchQueries(
+  orgs: string[],
+  number?: number,
+): {
   reviewQ: string;
   mineQ: string;
   issueQ: string;
 } {
   const org = ORG(orgs);
+  const num = number !== undefined ? ` ${number}` : "";
   return {
-    reviewQ: `is:open is:pr review-requested:@me draft:false archived:false sort:updated-desc${org}`,
-    mineQ: `is:open is:pr author:@me archived:false sort:updated-desc${org}`,
-    issueQ: `is:open is:issue assignee:@me archived:false sort:updated-desc${org}`,
+    reviewQ: `is:open is:pr review-requested:@me draft:false archived:false sort:updated-desc${org}${num}`,
+    mineQ: `is:open is:pr author:@me archived:false sort:updated-desc${org}${num}`,
+    issueQ: `is:open is:issue assignee:@me archived:false sort:updated-desc${org}${num}`,
   };
 }
 
@@ -52,33 +60,59 @@ const ISSUE_FIELDS = `
       repository { nameWithOwner }
       labels(first: 10) { nodes { name } }`;
 
+/** Projects V2 のステータス列（既定フィールド名 "Status" 固定）。
+ *  要 read:project スコープ。欠けたトークンでは GitHub がクエリ全体を
+ *  INSUFFICIENT_SCOPES で拒否し得るため、main が projects: false で
+ *  1回だけ縮退リトライする。 */
+const ISSUE_PROJECT_FIELDS = `
+      projectItems(first: 5, includeArchived: false) { nodes {
+        fieldValueByName(name: "Status") {
+          ... on ProjectV2ItemFieldSingleSelectValue { name }
+        }
+      } }`;
+
+export interface QueryDocOptions {
+  /** false で projectItems を文書から除去（スコープ縮退リトライ用）。既定 true */
+  projects?: boolean;
+  /** true で nodes を要求せず issueCount のみ取得（--count 用。既定 false） */
+  countOnly?: boolean;
+}
+
 /** 要求セクションに対応する search 節だけを含む GraphQL 文書を生成する。 */
-export function buildGraphQLQuery(sections: readonly Section[]): string {
+export function buildGraphQLQuery(
+  sections: readonly Section[],
+  docOpts: QueryDocOptions = {},
+): string {
+  const projects = docOpts.projects ?? true;
+  const countOnly = docOpts.countOnly ?? false;
   const vars: string[] = ["$limit: Int!"];
   const blocks: string[] = [];
+
+  // countOnly でも search の first: は必須引数なので $limit は残る（呼び出し側が 1 を渡す）
+  const body = (nodesBlock: string) => (countOnly ? "issueCount" : `issueCount${nodesBlock}`);
 
   if (sections.includes("review")) {
     vars.push("$reviewQ: String!");
     blocks.push(`  reviewRequested: search(query: $reviewQ, type: ISSUE, first: $limit) {
-    issueCount
+    ${body(`
     nodes { ... on PullRequest {${PR_LITE_FIELDS}
-    } }
+    } }`)}
   }`);
   }
   if (sections.includes("pr")) {
     vars.push("$mineQ: String!");
     blocks.push(`  myPRs: search(query: $mineQ, type: ISSUE, first: $limit) {
-    issueCount
+    ${body(`
     nodes { ... on PullRequest {${PR_FULL_FIELDS}
-    } }
+    } }`)}
   }`);
   }
   if (sections.includes("issue")) {
     vars.push("$issueQ: String!");
     blocks.push(`  assigned: search(query: $issueQ, type: ISSUE, first: $limit) {
-    issueCount
-    nodes { ... on Issue {${ISSUE_FIELDS}
-    } }
+    ${body(`
+    nodes { ... on Issue {${ISSUE_FIELDS}${projects ? ISSUE_PROJECT_FIELDS : ""}
+    } }`)}
   }`);
   }
 
@@ -97,7 +131,7 @@ export function buildGhArgs(
   sections: readonly Section[],
   opts: QueryOptions,
 ): string[] {
-  const q = buildSearchQueries(opts.orgs);
+  const q = buildSearchQueries(opts.orgs, opts.number);
   const args = ["api", "graphql", "-F", `limit=${opts.limit}`];
   if (sections.includes("review")) args.push("-f", `reviewQ=${q.reviewQ}`);
   if (sections.includes("pr")) args.push("-f", `mineQ=${q.mineQ}`);

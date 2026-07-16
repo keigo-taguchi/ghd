@@ -1,6 +1,6 @@
 {
   "name": "ghd",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "GitHub work dashboard CLI — see what needs your attention at a glance",
   "type": "module",
   "bin": {

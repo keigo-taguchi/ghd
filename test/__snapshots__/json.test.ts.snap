@@ -34,6 +34,7 @@ exports[`renderJson > スナップショット（v1 凍結の見張り） 1`] = 
       "ciMoreFailures": false,
       "review": "waiting",
       "conflict": false,
+      "ready": false,
       "updatedAt": "2026-07-10T06:00:00Z"
     },
     {
@@ -50,6 +51,7 @@ exports[`renderJson > スナップショット（v1 凍結の見張り） 1`] = 
       "ciMoreFailures": false,
       "review": "changes_requested",
       "conflict": true,
+      "ready": false,
       "updatedAt": "2026-07-10T04:00:00Z"
     },
     {
@@ -63,6 +65,7 @@ exports[`renderJson > スナップショット（v1 凍結の見張り） 1`] = 
       "ciMoreFailures": false,
       "review": null,
       "conflict": false,
+      "ready": false,
       "updatedAt": "2026-07-08T09:00:00Z"
     }
   ],
@@ -77,6 +80,7 @@ exports[`renderJson > スナップショット（v1 凍結の見張り） 1`] = 
         "bug"
       ],
       "priority": "P2",
+      "projectStatus": "In Progress",
       "updatedAt": "2026-07-04T09:00:00Z"
     }
   ],

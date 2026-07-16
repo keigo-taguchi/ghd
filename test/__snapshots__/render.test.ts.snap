@@ -37,13 +37,14 @@ exports[`renderDashboard TTY > エッジケース: moreFailures / dedupe / pendi
   #900   docs: ghost author PR                                 acme/lib     4h前
   … 他 2 件 (--limit 3 で表示)
 
-▶ 自分のPR (6)
+▶ 自分のPR (7)
+  #915   ✓ pass    ⏎ merge可      feat: pass+approved+MERGEAB… acme/lib    10h前
   #910   –                        feat: force-push直後（commi… acme/lib     5h前
   #911   ✗ fail    他にも失敗あり fix: 失敗名がfirst:50の外    acme/lib     6h前
   #912   ✗ fail    broken         fix: re-run重複（後勝ちで成… acme/lib     7h前
   #913   ● run                    chore: state欠落・実行中チ…  acme/lib     8h前
   #914   ✗ fail    ci/jenkins     fix: StatusContextのERROR +… acme/lib     9h前
-  … 他 1 件 (--limit 6 で表示)
+  … 他 1 件 (--limit 7 で表示)
 
 ▶ アサインIssue (2)
   #80    制御文字[31m入りタイトル                 priority: h… acme/lib     1d前
@@ -81,7 +82,7 @@ exports[`renderDashboard TTY > 正常系 en / width80 1`] = `
   #481   ● draft                  chore: bump deps          cureapp/app   2d ago
 
 ▶ Assigned issues (5)
-  #77    ログにノイズが多い                              P2 cureapp/api   6d ago
+  #77    ログにノイズが多い                P2 [In Progress] cureapp/api   6d ago
   … 4 more (--limit 5 to show)
 "
 `;
@@ -97,7 +98,7 @@ exports[`renderDashboard TTY > 正常系 ja / width80 / 色あり 1`] = `
   [1m#481  [22m [2m● draft  [22m                chore: bump deps          [2mcureapp/app[22m [2m    2d前[22m
 
 [1m▶ アサインIssue (5)[22m
-  [1m#77   [22m ログにノイズが多い                              [33mP2[39m [2mcureapp/api[22m [33m    6d前[39m
+  [1m#77   [22m ログにノイズが多い                [33mP2[39m [In Progress] [2mcureapp/api[22m [33m    6d前[39m
   [2m… 他 4 件 (--limit 5 で表示)[22m
 "
 `;
@@ -113,14 +114,14 @@ exports[`renderDashboard TTY > 正常系 ja / width80 / 色なし 1`] = `
   #481   ● draft                  chore: bump deps          cureapp/app     2d前
 
 ▶ アサインIssue (5)
-  #77    ログにノイズが多い                              P2 cureapp/api     6d前
+  #77    ログにノイズが多い                P2 [In Progress] cureapp/api     6d前
   … 他 4 件 (--limit 5 で表示)
 "
 `;
 
 exports[`renderDashboard TTY > 部分エラー: 欠けたセクションはスキップし警告フッタ 1`] = `
 "▶ 自分のPR (1)
-  #488   ✓ pass    approved       feat: retry queue         cureapp/api     3h前
+  #488   ✓ pass    ⏎ merge可      feat: retry queue         cureapp/api     3h前
 
 ▶ アサインIssue (0)
   なし

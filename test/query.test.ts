@@ -29,6 +29,15 @@ describe("buildSearchQueries", () => {
       expect(s).toContain("org:myorg");
     }
   });
+
+  it("openモード: 番号が検索語として各クエリ末尾に付く", () => {
+    const q = buildSearchQueries([], 488);
+    for (const s of [q.reviewQ, q.mineQ, q.issueQ]) {
+      expect(s.endsWith(" 488")).toBe(true);
+    }
+    // 番号なしでは付かない
+    expect(buildSearchQueries([]).mineQ).not.toContain("488");
+  });
 });
 
 describe("buildGraphQLQuery", () => {
@@ -61,6 +70,31 @@ describe("buildGraphQLQuery", () => {
     expect(doc).not.toContain("PullRequest");
     expect(doc).toContain("... on Issue");
     expect(doc).toContain("labels(first: 10)");
+  });
+
+  it("issue 節には既定で projectItems（Status列）が付く", () => {
+    const doc = buildGraphQLQuery(["issue"]);
+    expect(doc).toContain("projectItems(first: 5, includeArchived: false)");
+    expect(doc).toContain('fieldValueByName(name: "Status")');
+    // issue を含まない文書には付かない
+    expect(buildGraphQLQuery(["pr"])).not.toContain("projectItems");
+  });
+
+  it("projects: false で projectItems が文書から消える（スコープ縮退リトライ用）", () => {
+    const doc = buildGraphQLQuery(["review", "pr", "issue"], { projects: false });
+    expect(doc).not.toContain("projectItems");
+    expect(doc).toContain("... on Issue");
+  });
+
+  it("countOnly: issueCount のみで nodes を要求しない", () => {
+    const doc = buildGraphQLQuery(["review", "pr", "issue"], { countOnly: true });
+    expect(doc).toContain("issueCount");
+    expect(doc).not.toContain("nodes");
+    expect(doc).not.toContain("statusCheckRollup");
+    expect(doc).not.toContain("projectItems");
+    // search の first: は必須引数なので $limit は残る
+    expect(doc).toContain("first: $limit");
+    expect(doc).toContain("rateLimit");
   });
 });
 

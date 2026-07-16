@@ -108,6 +108,11 @@ describe("renderDashboard 非TTY (TSV)", () => {
     expect(out).toContain("\tfail/changes_requested/conflict\t");
     expect(out).toContain("\tpass/waiting\t");
   });
+
+  it("merge可 (ready) は state 列に /ready が付く", () => {
+    const out = renderDashboard(dash(edge), { ...OPTS, isTTY: false });
+    expect(out).toContain("\tpass/approved/ready\t");
+  });
 });
 
 describe("warningLines", () => {

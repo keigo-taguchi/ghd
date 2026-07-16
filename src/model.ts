@@ -28,6 +28,8 @@ export interface MyPrItem {
   ciMoreFailures: boolean;
   review: ReviewState;
   conflict: boolean;
+  /** CI pass + approved + mergeable=MERGEABLE の合成状態: あとはマージするだけ */
+  ready: boolean;
   updatedAt: string;
 }
 
@@ -38,6 +40,8 @@ export interface IssueItem {
   repo: string;
   labels: string[];
   priority: string | null;
+  /** Projects V2 の Status 列名（例: "In Progress"）。未所属は null */
+  projectStatus: string | null;
   updatedAt: string;
 }
 
@@ -48,7 +52,9 @@ export interface SectionData<T> {
 
 export type Warning =
   | { kind: "parse_skipped"; count: number }
-  | { kind: "partial_error" };
+  | { kind: "partial_error" }
+  /** read:project スコープ不足でプロジェクト列を取得できなかった（縮退表示） */
+  | { kind: "project_scope" };
 
 export interface Dashboard {
   reviewRequests?: SectionData<ReviewRequestItem>;

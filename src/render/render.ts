@@ -42,6 +42,8 @@ const MIN_TITLE_W = 8;
 const MIN_REPO_W = 4;
 const REPO_CAP = 24;
 const PRIO_CAP = 12;
+/** [Code Reviewing] = 16 セルが実用上の最長級 */
+const STATUS_CAP = 16;
 /** repo 列を落とす閾値 / 時刻列も落とす閾値 */
 const DROP_REPO_BELOW = 60;
 const DROP_TIME_BELOW = 40;
@@ -106,9 +108,21 @@ export function renderDashboard(d: Dashboard, opts: RenderOptions): string {
         PRIO_CAP,
         Math.max(0, ...items.map((i) => (i.priority ? stringWidth(i.priority) : 0))),
       );
-      const extraW = prioW > 0 ? prioW + GAP.length : 0;
+      // プロジェクト列は注釈: 狭い端末ではタイトルを守るため repo と同じ閾値で落とす
+      const statusW =
+        opts.width < DROP_REPO_BELOW
+          ? 0
+          : Math.min(
+              STATUS_CAP,
+              Math.max(
+                0,
+                ...items.map((i) => (i.projectStatus ? stringWidth(`[${i.projectStatus}]`) : 0)),
+              ),
+            );
+      const extraW =
+        (prioW > 0 ? prioW + GAP.length : 0) + (statusW > 0 ? statusW + GAP.length : 0);
       const cols = layout(opts, plainFixedLeft(numW), repoW, extraW);
-      lines.push(...items.map((i) => issueRow(i, numW, prioW, cols, opts, p)));
+      lines.push(...items.map((i) => issueRow(i, numW, prioW, statusW, cols, opts, p)));
     }
     // 全ノードが解析不能で skip された場合（items 空・totalCount>0）も件数案内は出す
     if (data.items.length < data.totalCount) {
@@ -127,11 +141,11 @@ export function renderDashboard(d: Dashboard, opts: RenderOptions): string {
 
 /** 警告フッタ（TTY では dim 表示、非TTY/JSON では呼び出し側が stderr へ流す）。 */
 export function warningLines(warnings: Warning[], lang: Lang): string[] {
-  return warnings.map((w) =>
-    w.kind === "parse_skipped"
-      ? t(lang, "warn.parseSkipped", { n: w.count })
-      : t(lang, "warn.partial"),
-  );
+  return warnings.map((w) => {
+    if (w.kind === "parse_skipped") return t(lang, "warn.parseSkipped", { n: w.count });
+    if (w.kind === "project_scope") return t(lang, "warn.projectScope");
+    return t(lang, "warn.partial");
+  });
 }
 
 function dataFor(
@@ -248,7 +262,7 @@ function prBadge(item: MyPrItem, p: Palette): string {
   }
 }
 
-/** 詳細列は1つだけ: CI失敗チェック名 > ⚠ conflict > レビュー状態語。draft は空。 */
+/** 詳細列は1つだけ: CI失敗チェック名 > ⚠ conflict > merge可 > レビュー状態語。draft は空。 */
 function prDetail(item: MyPrItem, opts: RenderOptions, p: Palette): string {
   if (item.draft) return padEnd("", DETAIL_W);
   if (item.ci === "fail" && (item.ciFailedChecks.length > 0 || item.ciMoreFailures)) {
@@ -262,6 +276,10 @@ function prDetail(item: MyPrItem, opts: RenderOptions, p: Palette): string {
   }
   if (item.conflict) {
     return p.yellow(padEnd(truncate(t(opts.lang, "conflict"), DETAIL_W), DETAIL_W));
+  }
+  // ready は approved の上位互換表示（ready ⇒ approved なので先に判定）
+  if (item.ready) {
+    return p.green(p.bold(padEnd(truncate(t(opts.lang, "pr.ready"), DETAIL_W), DETAIL_W)));
   }
   if (item.review === "approved") {
     return p.green(padEnd(truncate(t(opts.lang, "review.approved"), DETAIL_W), DETAIL_W));
@@ -296,6 +314,7 @@ function issueRow(
   item: IssueItem,
   numW: number,
   prioW: number,
+  statusW: number,
   cols: Columns,
   opts: RenderOptions,
   p: Palette,
@@ -304,6 +323,11 @@ function issueRow(
   parts.push(padEnd(truncate(item.title, cols.titleW), cols.titleW));
   if (prioW > 0) {
     parts.push(p.yellow(padEnd(truncate(item.priority ?? "", prioW), prioW)));
+  }
+  if (statusW > 0) {
+    // プロジェクト列名は任意文字列で状態色に対応付けられないため無彩色
+    const st = item.projectStatus !== null ? `[${item.projectStatus}]` : "";
+    parts.push(padEnd(truncate(st, statusW), statusW));
   }
   tail(parts, item, cols, opts, p);
   return parts.join(GAP).trimEnd();
@@ -323,7 +347,8 @@ function renderTsv(d: Dashboard, opts: RenderOptions): string {
         ? "draft"
         : i.ci +
           (i.review !== null ? `/${i.review}` : "") +
-          (i.conflict ? "/conflict" : "");
+          (i.conflict ? "/conflict" : "") +
+          (i.ready ? "/ready" : "");
       rows.push(["pr", `${i.number}`, i.repo, i.title, state, i.updatedAt, i.url]);
     }
   }

@@ -13,7 +13,7 @@
   #481   ● draft                  chore: bump deps   cureapp/app    2d前
 
 ▶ アサインIssue (1)
-  #77    ログにノイズが多い  P2                      cureapp/api    6d前
+  #77    ログにノイズが多い  P2  [In Progress]       cureapp/api    6d前
 ```
 
 出力は上から順に**行動優先度**そのもの: 「誰を待たせているか」→「何が壊れているか」→「次に何をやるか」。
@@ -46,14 +46,18 @@ $ ghd            # 3セクション全部
 $ ghd review     # レビュー待ちのみ（先頭一致: ghd r でも可）
 $ ghd pr         # 自分のPRのみ (ghd p)
 $ ghd issue      # アサインIssueのみ (ghd i)
+$ ghd 488        # その番号のPR/Issueをブラウザで開く（非TTYではURL出力のみ）
 
 $ ghd --org cureapp          # 組織で絞り込み（繰り返し指定可）
 $ ghd --limit 30             # セクションあたり表示件数（既定10・最大50）
+$ ghd --count                # 件数のみ1行出力: R2 P3 I1（プロンプト/tmux組み込み用）
 $ ghd --json | jq '.totals'  # 機械可読JSON（schemaVersion契約つき）
 $ watch -c 'FORCE_COLOR=1 ghd'   # 簡易watchモード（色付き）
 ```
 
 言語は `--lang ja|en` > `GHD_LANG` > `LC_ALL`/`LANG` で自動判定。色は `--no-color` > `NO_COLOR` > `FORCE_COLOR=1` > TTY判定。
+
+`ghd <番号>` は3セクション（レビュー待ち・自分のPR・アサインIssue）を1往復で検索して開く。ブラウザは `BROWSER` 環境変数 > OS既定（`open`/`xdg-open`/`start`）。同番号が複数リポジトリでヒットした場合は開かずに候補一覧を表示する。
 
 ## 表示の読み方
 
@@ -65,7 +69,9 @@ $ watch -c 'FORCE_COLOR=1 ghd'   # 簡易watchモード（色付き）
 | `–` | CI未設定（force-push直後含む） |
 | `● draft` | ドラフト（CI・レビュー状態は表示しない: draftの赤はまだアクションではない） |
 | `approve待ち` / `approved` / `要修正` | reviewDecision。レビュー必須でないリポジトリでは何も出さない |
+| `⏎ merge可` | CI成功 + approved + コンフリクトなし。あとはマージするだけ（セクション先頭に浮上） |
 | `⚠ conflict` | マージコンフリクト |
+| `[In Progress]` 等 | Issueが載っているProjects V2の`Status`列名（要 `read:project` スコープ。なければこの列だけ省いて表示し、ヒントを出す） |
 
 ## 終了コード
 
