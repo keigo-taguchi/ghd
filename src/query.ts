@@ -60,8 +60,28 @@ const ISSUE_FIELDS = `
       repository { nameWithOwner }
       labels(first: 10) { nodes { name } }`;
 
+/** Projects V2 のステータス列（既定フィールド名 "Status" 固定）。
+ *  要 read:project スコープ。欠けたトークンでは GitHub がクエリ全体を
+ *  INSUFFICIENT_SCOPES で拒否し得るため、main が projects: false で
+ *  1回だけ縮退リトライする。 */
+const ISSUE_PROJECT_FIELDS = `
+      projectItems(first: 5, includeArchived: false) { nodes {
+        fieldValueByName(name: "Status") {
+          ... on ProjectV2ItemFieldSingleSelectValue { name }
+        }
+      } }`;
+
+export interface QueryDocOptions {
+  /** false で projectItems を文書から除去（スコープ縮退リトライ用）。既定 true */
+  projects?: boolean;
+}
+
 /** 要求セクションに対応する search 節だけを含む GraphQL 文書を生成する。 */
-export function buildGraphQLQuery(sections: readonly Section[]): string {
+export function buildGraphQLQuery(
+  sections: readonly Section[],
+  docOpts: QueryDocOptions = {},
+): string {
+  const projects = docOpts.projects ?? true;
   const vars: string[] = ["$limit: Int!"];
   const blocks: string[] = [];
 
@@ -85,7 +105,7 @@ export function buildGraphQLQuery(sections: readonly Section[]): string {
     vars.push("$issueQ: String!");
     blocks.push(`  assigned: search(query: $issueQ, type: ISSUE, first: $limit) {
     issueCount
-    nodes { ... on Issue {${ISSUE_FIELDS}
+    nodes { ... on Issue {${ISSUE_FIELDS}${projects ? ISSUE_PROJECT_FIELDS : ""}
     } }
   }`);
   }

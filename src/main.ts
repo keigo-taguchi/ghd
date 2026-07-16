@@ -5,7 +5,12 @@
 
 import { parseArgs } from "node:util";
 import type { UrlOpener } from "./browser.js";
-import { stripControlChars, toDashboard } from "./derive.js";
+import {
+  isProjectScopeError,
+  isTotalFailure,
+  stripControlChars,
+  toDashboard,
+} from "./derive.js";
 import { classifyOutcome, EXIT_CODES, type ErrorKind } from "./errors.js";
 import type { GhRunner } from "./gh.js";
 import { type Lang, type MessageKey, resolveLang, t } from "./i18n.js";
@@ -342,9 +347,25 @@ export async function run(deps: Deps): Promise<number> {
     ...(cli.open !== null ? { number: cli.open } : {}),
   });
   const doc = buildGraphQLQuery(sections);
-  const result = await deps.runner.exec(ghArgs, { stdin: doc, timeoutMs: TIMEOUT_MS });
+  let result = await deps.runner.exec(ghArgs, { stdin: doc, timeoutMs: TIMEOUT_MS });
+  let parsed = parseResponse(result.stdout, sections);
 
-  const parsed = parseResponse(result.stdout, sections);
+  // read:project スコープ欠如は GitHub がクエリ全体を INSUFFICIENT_SCOPES で
+  // 拒否し得る。ダッシュボード全滅にはせず、projectItems を外して1回だけ
+  // 縮退リトライし、専用ヒント警告に変換する（落ちない原則の例外的2往復）
+  let projectsDegraded = false;
+  if (
+    sections.includes("issue") &&
+    parsed !== null &&
+    isTotalFailure(parsed, sections) &&
+    parsed.errors.some(isProjectScopeError)
+  ) {
+    projectsDegraded = true;
+    const degradedDoc = buildGraphQLQuery(sections, { projects: false });
+    result = await deps.runner.exec(ghArgs, { stdin: degradedDoc, timeoutMs: TIMEOUT_MS });
+    parsed = parseResponse(result.stdout, sections);
+  }
+
   const outcome = classifyOutcome({
     enoent: result.enoent,
     timedOut: result.timedOut,
@@ -378,6 +399,10 @@ export async function run(deps: Deps): Promise<number> {
   }
 
   const dashboard = toDashboard(outcome.parsed, cli.sections);
+  if (projectsDegraded) {
+    // 縮退リトライ後のレスポンスにはスコープエラーが残らないため、ここで補う
+    dashboard.warnings.push({ kind: "project_scope" });
+  }
 
   const rl = outcome.parsed.rateLimit;
   if (rl !== undefined && rl.remaining < RATE_WARN_THRESHOLD) {

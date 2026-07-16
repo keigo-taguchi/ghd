@@ -71,6 +71,20 @@ describe("buildGraphQLQuery", () => {
     expect(doc).toContain("... on Issue");
     expect(doc).toContain("labels(first: 10)");
   });
+
+  it("issue 節には既定で projectItems（Status列）が付く", () => {
+    const doc = buildGraphQLQuery(["issue"]);
+    expect(doc).toContain("projectItems(first: 5, includeArchived: false)");
+    expect(doc).toContain('fieldValueByName(name: "Status")');
+    // issue を含まない文書には付かない
+    expect(buildGraphQLQuery(["pr"])).not.toContain("projectItems");
+  });
+
+  it("projects: false で projectItems が文書から消える（スコープ縮退リトライ用）", () => {
+    const doc = buildGraphQLQuery(["review", "pr", "issue"], { projects: false });
+    expect(doc).not.toContain("projectItems");
+    expect(doc).toContain("... on Issue");
+  });
 });
 
 describe("buildGhArgs", () => {

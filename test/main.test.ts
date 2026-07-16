@@ -9,19 +9,24 @@ import rateLimited from "./fixtures/rate-limited.json";
 
 const NOW = Date.parse("2026-07-10T09:00:00Z");
 
-/** テーブル駆動の FakeGhRunner。呼び出しを記録し、固定レスポンスを返す。 */
+/** テーブル駆動の FakeGhRunner。呼び出しを記録し、固定レスポンスを返す。
+ *  配列を渡すと呼び出しごとに順に消費する（縮退リトライのテスト用）。 */
 class FakeGhRunner implements GhRunner {
   calls: { args: string[]; opts: GhExecOptions }[] = [];
-  constructor(private result: Partial<GhExecResult>) {}
+  private results: Partial<GhExecResult>[];
+  constructor(result: Partial<GhExecResult> | Partial<GhExecResult>[]) {
+    this.results = Array.isArray(result) ? [...result] : [result];
+  }
   exec(args: string[], opts: GhExecOptions): Promise<GhExecResult> {
     this.calls.push({ args, opts });
+    const r = this.results.length > 1 ? this.results.shift()! : this.results[0]!;
     return Promise.resolve({
       stdout: "",
       stderr: "",
       code: 0,
       enoent: false,
       timedOut: false,
-      ...this.result,
+      ...r,
     });
   }
 }
@@ -36,7 +41,7 @@ interface Captured {
 
 async function exec(
   argv: string[],
-  ghResult: Partial<GhExecResult>,
+  ghResult: Partial<GhExecResult> | Partial<GhExecResult>[],
   depsOverride: Partial<Deps> = {},
 ): Promise<Captured> {
   const runner = new FakeGhRunner(ghResult);
@@ -141,6 +146,53 @@ describe("run 正常系", () => {
   it("--lang en で英語表示", async () => {
     const r = await exec(["--lang", "en"], ok(full));
     expect(r.out).toContain("Review requests");
+  });
+});
+
+describe("run Projects V2 スコープ縮退", () => {
+  const scopeRejected = {
+    stdout: JSON.stringify({
+      data: null,
+      errors: [
+        {
+          type: "INSUFFICIENT_SCOPES",
+          message:
+            "Your token has not been granted the required scopes to execute this query. The 'projectItems' field requires one of the following scopes: ['read:project'], but your token has only been granted the: ['repo'] scopes.",
+        },
+      ],
+    }),
+    code: 1,
+  };
+
+  it("read:projectなし → projectItems抜きで1回だけ再試行し、ヒントを添えて描画", async () => {
+    const r = await exec([], [scopeRejected, ok(full)]);
+    expect(r.code).toBe(0);
+    expect(r.runner.calls).toHaveLength(2);
+    expect(r.runner.calls[0]!.opts.stdin).toContain("projectItems");
+    expect(r.runner.calls[1]!.opts.stdin).not.toContain("projectItems");
+    expect(r.out).toContain("▶ レビュー待ち (2)");
+    expect(r.out).toContain("read:project");
+    // スコープ不足は partial_error（アクセス不可）扱いにしない
+    expect(r.out).not.toContain("一部のリポジトリ");
+  });
+
+  it("issueセクションを含まない実行では再試行しない", async () => {
+    const r = await exec(["pr"], [scopeRejected, ok(full)]);
+    expect(r.runner.calls).toHaveLength(1);
+    expect(r.code).toBe(1);
+  });
+
+  it("スコープ以外の全滅エラーでは再試行しない", async () => {
+    const boom = {
+      stdout: JSON.stringify({
+        data: null,
+        errors: [{ type: "SOME_ERROR", message: "boom" }],
+      }),
+      code: 1,
+    };
+    const r = await exec([], [boom, ok(full)]);
+    expect(r.runner.calls).toHaveLength(1);
+    expect(r.code).toBe(1);
   });
 });
 

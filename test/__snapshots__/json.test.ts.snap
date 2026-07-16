@@ -80,6 +80,7 @@ exports[`renderJson > スナップショット（v1 凍結の見張り） 1`] = 
         "bug"
       ],
       "priority": "P2",
+      "projectStatus": "In Progress",
       "updatedAt": "2026-07-04T09:00:00Z"
     }
   ],

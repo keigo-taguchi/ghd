@@ -16,7 +16,12 @@ import type {
   ReviewState,
   Section,
 } from "./model.js";
-import type { ParsedResponse, RawCheckContext, RawRollup } from "./parse.js";
+import type {
+  GraphQLErrorEntry,
+  ParsedResponse,
+  RawCheckContext,
+  RawRollup,
+} from "./parse.js";
 
 const FAILED_CONCLUSIONS = new Set([
   "FAILURE",
@@ -189,6 +194,7 @@ export function toDashboard(
         repo: stripControlChars(n.repo),
         labels,
         priority: derivePriority(labels),
+        projectStatus: n.projectStatus === null ? null : stripControlChars(n.projectStatus),
         updatedAt: n.updatedAt,
       };
     });
@@ -199,6 +205,13 @@ export function toDashboard(
     dashboard.warnings.push({ kind: "parse_skipped", count: parsed.skipped });
   }
 
+  // read:project スコープ不足は「一部リポジトリにアクセスできない」ではなく
+  // 「プロジェクト列だけ出せない」なので、専用ヒントに分離する
+  if (parsed.errors.some(isProjectScopeError)) {
+    dashboard.warnings.push({ kind: "project_scope" });
+  }
+  const realErrors = parsed.errors.filter((e) => !isProjectScopeError(e));
+
   // 部分エラー = 要求セクションの欠落、または data と errors の併存
   // （セクションが全て揃っていても errors があれば一部リポジトリが欠けている）
   const missing = sections.some((s) => {
@@ -207,11 +220,16 @@ export function toDashboard(
     return !parsed.issues;
   });
   const anyPresent = parsed.review || parsed.mine || parsed.issues;
-  if ((missing && anyPresent) || parsed.errors.length > 0) {
+  if ((missing && anyPresent) || realErrors.length > 0) {
     dashboard.warnings.push({ kind: "partial_error" });
   }
 
   return dashboard;
+}
+
+/** read:project スコープ不足由来の GraphQL エラー判定（main の縮退リトライにも使う）。 */
+export function isProjectScopeError(e: GraphQLErrorEntry): boolean {
+  return e.type === "INSUFFICIENT_SCOPES" && /read:project|projectItems/i.test(e.message ?? "");
 }
 
 /** 要求セクションが1つも取れていない = 全滅（部分エラーではなく致命扱い）。 */

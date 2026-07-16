@@ -51,6 +51,7 @@ export function renderJson(
       url: i.url,
       labels: i.labels,
       priority: i.priority,
+      projectStatus: i.projectStatus,
       updatedAt: i.updatedAt,
     }));
   }

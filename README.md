@@ -13,7 +13,7 @@
   #481   ● draft                  chore: bump deps   cureapp/app    2d前
 
 ▶ アサインIssue (1)
-  #77    ログにノイズが多い  P2                      cureapp/api    6d前
+  #77    ログにノイズが多い  P2  [In Progress]       cureapp/api    6d前
 ```
 
 出力は上から順に**行動優先度**そのもの: 「誰を待たせているか」→「何が壊れているか」→「次に何をやるか」。
@@ -70,6 +70,7 @@ $ watch -c 'FORCE_COLOR=1 ghd'   # 簡易watchモード（色付き）
 | `approve待ち` / `approved` / `要修正` | reviewDecision。レビュー必須でないリポジトリでは何も出さない |
 | `⏎ merge可` | CI成功 + approved + コンフリクトなし。あとはマージするだけ（セクション先頭に浮上） |
 | `⚠ conflict` | マージコンフリクト |
+| `[In Progress]` 等 | Issueが載っているProjects V2の`Status`列名（要 `read:project` スコープ。なければこの列だけ省いて表示し、ヒントを出す） |
 
 ## 終了コード
 

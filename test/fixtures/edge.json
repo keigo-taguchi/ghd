@@ -189,7 +189,8 @@
           "url": "https://github.com/acme/lib/issues/80",
           "updatedAt": "2026-07-09T00:00:00Z",
           "repository": { "nameWithOwner": "acme/lib" },
-          "labels": { "nodes": [ { "name": "priority: high" }, null ] }
+          "labels": { "nodes": [ { "name": "priority: high" }, null ] },
+          "projectItems": { "nodes": [] }
         },
         {
           "number": 81,
@@ -197,7 +198,8 @@
           "url": "https://github.com/acme/lib/issues/81",
           "updatedAt": "2026-07-08T00:00:00Z",
           "repository": { "nameWithOwner": "acme/lib" },
-          "labels": { "nodes": [] }
+          "labels": { "nodes": [] },
+          "projectItems": { "nodes": [ { "fieldValueByName": null } ] }
         }
       ]
     },

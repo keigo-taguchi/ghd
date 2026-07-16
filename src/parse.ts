@@ -49,6 +49,8 @@ export interface RawIssue {
   updatedAt: string;
   repo: string;
   labels: string[];
+  /** Projects V2 の Status 列名（未所属・Status フィールドなし・スコープ不足は null） */
+  projectStatus: string | null;
 }
 
 export interface RawSection<T> {
@@ -151,6 +153,18 @@ function parseRollup(node: Obj): RawRollup | null {
     totalCount,
     contexts,
   };
+}
+
+/** projectItems から最初の非 null な Status 値を拾う（複数プロジェクト所属時は先頭優先）。 */
+function parseProjectStatus(node: Obj): string | null {
+  const pi = node["projectItems"];
+  if (!isObj(pi) || !Array.isArray(pi["nodes"])) return null;
+  for (const item of pi["nodes"]) {
+    if (!isObj(item)) continue;
+    const fv = item["fieldValueByName"];
+    if (isObj(fv) && isStr(fv["name"])) return fv["name"];
+  }
+  return null;
 }
 
 function parseSection<T>(
@@ -272,6 +286,7 @@ export function parseResponse(
           updatedAt: n["updatedAt"],
           repo,
           labels,
+          projectStatus: parseProjectStatus(n),
         };
       },
       counter,

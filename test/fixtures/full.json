@@ -110,7 +110,12 @@
           "url": "https://github.com/cureapp/api/issues/77",
           "updatedAt": "2026-07-04T09:00:00Z",
           "repository": { "nameWithOwner": "cureapp/api" },
-          "labels": { "nodes": [ { "name": "P2" }, { "name": "bug" } ] }
+          "labels": { "nodes": [ { "name": "P2" }, { "name": "bug" } ] },
+          "projectItems": {
+            "nodes": [
+              { "fieldValueByName": { "name": "In Progress" } }
+            ]
+          }
         }
       ]
     },

@@ -26,6 +26,8 @@ const ja = {
   "open.badUrl": "https 以外のURLのため開きません",
   "warn.partial": "⚠ 一部のリポジトリにアクセスできませんでした",
   "warn.parseSkipped": "⚠ {n}件を解析できませんでした",
+  "warn.projectScope":
+    "ℹ プロジェクト列の表示には read:project スコープが必要です: gh auth refresh -s read:project",
   "warn.rateLow": "⚠ APIレート制限の残量が少なくなっています (残り {remaining})",
   "err.ghNotFound":
     "gh が見つかりません。https://cli.github.com からインストールしてください",
@@ -62,6 +64,8 @@ const en: Record<MessageKey, string> = {
   "open.badUrl": "Refusing to open a non-https URL",
   "warn.partial": "⚠ Some repositories could not be accessed",
   "warn.parseSkipped": "⚠ Skipped {n} unparseable item(s)",
+  "warn.projectScope":
+    "ℹ Project status needs the read:project scope: gh auth refresh -s read:project",
   "warn.rateLow": "⚠ API rate limit is running low ({remaining} left)",
   "err.ghNotFound":
     "gh not found. Install it from https://cli.github.com",

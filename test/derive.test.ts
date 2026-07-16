@@ -140,6 +140,14 @@ describe("toDashboard", () => {
     expect(d.assignedIssues?.items[0]?.title).toBe("制御文字[31m入りタイトル");
   });
 
+  it("projectStatus: Status列名を拾い、未所属・Statusフィールドなしは null", () => {
+    const d = toDashboard(parseResponse(S(full), ["issue"])!, ["issue"]);
+    expect(d.assignedIssues?.items[0]?.projectStatus).toBe("In Progress");
+    const e = toDashboard(parseResponse(S(edge), ["issue"])!, ["issue"]);
+    // #80: projectItems 空 / #81: fieldValueByName null（Statusフィールドなし）
+    expect(e.assignedIssues?.items.map((i) => i.projectStatus)).toEqual([null, null]);
+  });
+
   it("ready: pass+approved+MERGEABLE のみ true・セクション先頭へ浮上", () => {
     const d = toDashboard(parseResponse(S(edge), ["pr"])!, ["pr"]);
     const items = d.myPullRequests!.items;
