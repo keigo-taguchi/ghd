@@ -1,5 +1,5 @@
 {
-  "name": "ghd",
+  "name": "ghd-cli",
   "version": "0.2.0",
   "description": "GitHub work dashboard CLI — see what needs your attention at a glance",
   "type": "module",
@@ -19,7 +19,28 @@
     "test:watch": "vitest",
     "test:contract": "GHD_CONTRACT_TEST=1 vitest run contract",
     "fixtures:record": "tsx scripts/record-fixtures.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "tsc --noEmit && vitest run && node scripts/build.mjs"
+  },
+  "keywords": [
+    "github",
+    "cli",
+    "dashboard",
+    "pull-request",
+    "code-review",
+    "issues",
+    "gh",
+    "productivity",
+    "terminal"
+  ],
+  "author": "Keigo Taguchi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keigo-taguchi/ghd.git"
+  },
+  "homepage": "https://github.com/keigo-taguchi/ghd#readme",
+  "bugs": {
+    "url": "https://github.com/keigo-taguchi/ghd/issues"
   },
   "license": "MIT",
   "devDependencies": {
