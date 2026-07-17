@@ -1,117 +1,124 @@
-# ghd — GitHub作業ダッシュボードCLI
+# ghd — GitHub work dashboard CLI
 
-ターミナルで `ghd` と打つと、GitHub上の「今やるべきこと」を1画面・1秒で把握できるCLIツール。
+English | [日本語](./README.ja.md)
+
+Type `ghd` in your terminal and see everything on GitHub that needs your attention — one screen, one second.
 
 ```
-▶ レビュー待ち (2)
-  #482   feat: sync retry                            cureapp/api    2h前
-  #479   fix: token refresh                          cureapp/app    1d前
+▶ Review requests (2)
+  #482   feat: sync retry                            cureapp/api    2h ago
+  #479   fix: token refresh                          cureapp/app    1d ago
 
-▶ 自分のPR (3)
-  #488   ✓ pass    approve待ち    feat: retry queue  cureapp/api    3h前
-  #485   ✗ fail    test/unit+     fix: flaky spec    cureapp/api    5h前
-  #481   ● draft                  chore: bump deps   cureapp/app    2d前
+▶ My PRs (3)
+  #488   ✓ pass    needs review   feat: retry queue  cureapp/api    3h ago
+  #485   ✗ fail    test/unit+     fix: flaky spec    cureapp/api    5h ago
+  #481   ● draft                  chore: bump deps   cureapp/app    2d ago
 
-▶ アサインIssue (1)
-  #77    ログにノイズが多い  P2  [In Progress]       cureapp/api    6d前
+▶ Assigned issues (1)
+  #77    Noisy logging       P2  [In Progress]       cureapp/api    6d ago
 ```
 
-出力は上から順に**行動優先度**そのもの: 「誰を待たせているか」→「何が壊れているか」→「次に何をやるか」。
+Top-to-bottom order **is** action priority: who is waiting on you → what is broken → what to do next.
 
-## 特徴
+## Features
 
-- **API 1往復**: 3つの検索を aliased GraphQL で1リクエストに束ねる（実測コスト 1pt / 5000pt/h）
-- **速い**: ランタイム依存ゼロ + esbuild単一ファイルバンドル。起動オーバーヘッド実測 ~30ms
-- **落ちない**: ノード単位の寛容パースで、1つの変なPRがダッシュボード全体を壊さない
-- **色 = 状態の意味**: 赤=要アクション / 緑=良好 / 黄=進行中・3日超放置 / dim=メタ情報
-- **全角対応**: East Asian Width で日本語タイトルも列が揃う
-- **パイプ対応**: 非TTYでは自動でタブ区切りに切替（`ghd | grep`、`ghd | awk -F'\t'`）
+- **One API round-trip**: three searches bundled into a single aliased GraphQL request (measured cost: 1pt out of 5,000pt/h)
+- **Fast**: zero runtime dependencies + single-file esbuild bundle. Measured startup overhead ~30ms
+- **Resilient**: lenient per-node parsing — one malformed PR never takes down the whole dashboard
+- **Color = state**: red = action needed / green = good / yellow = in progress or stale >3 days / dim = metadata
+- **CJK-aware**: East Asian Width handling keeps columns aligned even with Japanese titles
+- **Pipe-friendly**: automatically switches to tab-separated output when not a TTY (`ghd | grep`, `ghd | awk -F'\t'`)
 
-## 必要なもの
+## Requirements
 
-- [gh CLI](https://cli.github.com) 2.x（認証済み: `gh auth login`）
+- [gh CLI](https://cli.github.com) 2.x, authenticated (`gh auth login`)
 - Node.js 20+
 
-## インストール
+## Install
+
+```console
+$ npm install -g ghd-cli    # installs the `ghd` command
+```
+
+Or from source:
 
 ```console
 $ pnpm install && pnpm build
-$ ln -s "$PWD/dist/ghd.mjs" ~/.local/bin/ghd   # PATHの通った場所へ
+$ ln -s "$PWD/dist/ghd.mjs" ~/.local/bin/ghd   # anywhere on your PATH
 ```
 
-## 使い方
+## Usage
 
 ```console
-$ ghd            # 3セクション全部
-$ ghd review     # レビュー待ちのみ（先頭一致: ghd r でも可）
-$ ghd pr         # 自分のPRのみ (ghd p)
-$ ghd issue      # アサインIssueのみ (ghd i)
-$ ghd 488        # その番号のPR/Issueをブラウザで開く（非TTYではURL出力のみ）
+$ ghd            # all three sections
+$ ghd review     # review requests only (prefix match: ghd r)
+$ ghd pr         # my PRs only (ghd p)
+$ ghd issue      # assigned issues only (ghd i)
+$ ghd 488        # open that PR/issue in the browser (non-TTY: print URL only)
 
-$ ghd --org cureapp          # 組織で絞り込み（繰り返し指定可）
-$ ghd --limit 30             # セクションあたり表示件数（既定10・最大50）
-$ ghd --count                # 件数のみ1行出力: R2 P3 I1（プロンプト/tmux組み込み用）
-$ ghd --json | jq '.totals'  # 機械可読JSON（schemaVersion契約つき）
-$ watch -c 'FORCE_COLOR=1 ghd'   # 簡易watchモード（色付き）
+$ ghd --org cureapp          # filter by organization (repeatable)
+$ ghd --limit 30             # items per section (default 10, max 50)
+$ ghd --count                # one-line counts: R2 P3 I1 (for prompts / tmux statuslines)
+$ ghd --json | jq '.totals'  # machine-readable JSON (schemaVersion contract)
+$ watch -c 'FORCE_COLOR=1 ghd'   # poor man's watch mode (with colors)
 ```
 
-言語は `--lang ja|en` > `GHD_LANG` > `LC_ALL`/`LANG` で自動判定。色は `--no-color` > `NO_COLOR` > `FORCE_COLOR=1` > TTY判定。
+Language is resolved as `--lang ja|en` > `GHD_LANG` > `LC_ALL`/`LANG`. Color as `--no-color` > `NO_COLOR` > `FORCE_COLOR=1` > TTY detection.
 
-`ghd <番号>` は3セクション（レビュー待ち・自分のPR・アサインIssue）を1往復で検索して開く。ブラウザは `BROWSER` 環境変数 > OS既定（`open`/`xdg-open`/`start`）。同番号が複数リポジトリでヒットした場合は開かずに候補一覧を表示する。
+`ghd <number>` searches all three sections in a single round-trip and opens the match. Browser selection: `BROWSER` env var > OS default (`open`/`xdg-open`/`start`). If the same number matches in multiple repositories, ghd lists the candidates instead of opening one.
 
-## 表示の読み方
+## Reading the output
 
-| 表示 | 意味 |
+| Display | Meaning |
 |---|---|
-| `✓ pass` | CI成功 |
-| `✗ fail` + チェック名 | CI失敗。`+` は他にも失敗あり |
-| `● run` | CI実行中 |
-| `–` | CI未設定（force-push直後含む） |
-| `● draft` | ドラフト（CI・レビュー状態は表示しない: draftの赤はまだアクションではない） |
-| `approve待ち` / `approved` / `要修正` | reviewDecision。レビュー必須でないリポジトリでは何も出さない |
-| `⏎ merge可` | CI成功 + approved + コンフリクトなし。あとはマージするだけ（セクション先頭に浮上） |
-| `⚠ conflict` | マージコンフリクト |
-| `[In Progress]` 等 | Issueが載っているProjects V2の`Status`列名（要 `read:project` スコープ。なければこの列だけ省いて表示し、ヒントを出す） |
+| `✓ pass` | CI green |
+| `✗ fail` + check name | CI failed. `+` means more failures |
+| `● run` | CI running |
+| `–` | No CI configured (including right after a force-push) |
+| `● draft` | Draft (CI/review state hidden: red on a draft is not an action yet) |
+| `needs review` / `approved` / `changes req` | reviewDecision. Nothing is shown for repos that don't require reviews |
+| `⏎ ready` | CI green + approved + no conflicts. Just merge it (floats to the top of the section) |
+| `⚠ conflict` | Merge conflict |
+| `[In Progress]` etc. | The Projects V2 `Status` column the issue is on (needs the `read:project` scope; without it the column is omitted and a hint is shown) |
 
-## 終了コード
+## Exit codes
 
-| code | 意味 |
+| code | meaning |
 |---|---|
-| 0 | 表示成功（0件・部分エラーで一部描画できた場合を含む） |
-| 1 | 予期しないエラー / gh が古い |
-| 2 | 使い方誤り |
-| 3 | 認証（未認証・SAML・スコープ不足） |
-| 4 | ネットワーク断 |
-| 5 | タイムアウト（10秒固定） |
-| 6 | APIレート制限 |
-| 127 | gh 不在 |
+| 0 | Rendered successfully (including zero items and partial errors with partial output) |
+| 1 | Unexpected error / gh too old |
+| 2 | Usage error |
+| 3 | Authentication (not logged in / SAML / missing scopes) |
+| 4 | Network unreachable |
+| 5 | Timeout (fixed 10s) |
+| 6 | API rate limited |
+| 127 | gh not found |
 
-## 開発
+## Development
 
 ```console
-$ pnpm test              # ユニット+スナップショット（gh不要・ネットワーク不要）
+$ pnpm test              # unit + snapshot tests (no gh, no network)
 $ pnpm typecheck
-$ pnpm build             # dist/ghd.mjs 単一ファイル
-$ pnpm test:contract     # 実ghを叩く契約テスト（GHD_CONTRACT_TEST=1）
-$ pnpm fixtures:record   # 実APIレスポンスを test/fixtures/live-full.json に録画
+$ pnpm build             # single-file dist/ghd.mjs
+$ pnpm test:contract     # contract tests against the real gh (GHD_CONTRACT_TEST=1)
+$ pnpm fixtures:record   # record real API responses into test/fixtures/live-full.json
 ```
 
-設計の全記録は [docs/SPEC.md](docs/SPEC.md)（3案の設計コンペ → 3審査員 → 統合、の成果物）。
+The full design history lives in [docs/SPEC.md](docs/SPEC.md) (Japanese; the outcome of a three-proposal design competition reviewed by three judges).
 
-### 実測値（gh 2.87.3 / 2026-07-10 採取）
+### Measurements (gh 2.87.3, taken 2026-07-10)
 
-- GraphQL クエリコスト: **1pt**（rateLimit.cost 実測）
-- 起動オーバーヘッド（`ghd -V`）: **~30ms**
-- 実API 1往復込みの体感: **~1–3秒**（GitHub search APIのレイテンシが支配項）
+- GraphQL query cost: **1pt** (measured via rateLimit.cost)
+- Startup overhead (`ghd -V`): **~30ms**
+- Perceived latency incl. one real API round-trip: **~1–3s** (dominated by GitHub search API latency)
 
-## v1 のスコープ外（意図的に入れていないもの）
+## Intentionally out of scope
 
-- インタラクティブTUI・watchモード（`watch -c 'FORCE_COLOR=1 ghd'` で代替）
-- ブラウザで開く `--web`（v1.1候補。`gh pr view -w <num>` で代替）
-- 通知・メンションセクション
-- チーム宛レビュー依頼の分離表示（`review-requested:@me` はチーム宛も含む。v1では同列表示 = 見落としより過剰表示が安全）
-- GitHub Enterprise Server 対応保証
-- 注意: GitHub search インデックスの反映は直近数十秒遅れることがある
+- Interactive TUI / watch mode (use `watch -c 'FORCE_COLOR=1 ghd'`)
+- Notification / mention sections
+- Separating team review requests (`review-requested:@me` includes team requests; showing them inline is safer than missing them)
+- GitHub Enterprise Server support guarantees
+- Note: the GitHub search index can lag behind by up to a few dozen seconds
 
 ## License
 
